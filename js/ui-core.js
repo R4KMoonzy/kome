@@ -70,7 +70,7 @@
       var done = false;
       function finish() { if (done) return; done = true; resolve(); }
       global.addEventListener('load', finish, { once: true });
-      setTimeout(finish, 1500);
+      setTimeout(finish, 700);
     });
   }
 
@@ -80,12 +80,12 @@
     if (!loader) { revealBrand(); return Promise.resolve(); }
     return new Promise(function (resolve) {
       loader.classList.add('is-washing');
-      setTimeout(function () { loader.classList.add('is-gone'); }, 640);
-      setTimeout(function () { revealBrand(); }, 720);
+      setTimeout(function () { loader.classList.add('is-gone'); }, 520);
+      setTimeout(function () { revealBrand(); }, 780);
       setTimeout(function () {
         if (loader.parentNode) loader.parentNode.removeChild(loader);
         resolve();
-      }, 1060);
+      }, 860);
     });
   }
 
@@ -764,8 +764,11 @@
 
     /* Solo aquí esperamos a la red y al load de la página: el shell y los
        eventos ya están listos. Después el oleaje lava el loader. */
-    await Promise.all([configTask, authTask, pageLoadPromise()]);
-    await washLoader();
+    /* El oleaje no depende de Auth: arranca en cuanto están la marca y el DOM.
+       UI.ready sí espera a Auth para que las páginas con requireAuth vean
+       la sesión ya resuelta. */
+    var washed = Promise.all([configTask, pageLoadPromise()]).then(washLoader);
+    await Promise.all([washed, authTask]);
 
     D.getActivePromotions().then(function (list) {
       var c = qs('#promo-count'); if (c) c.textContent = list.length;

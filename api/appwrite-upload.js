@@ -55,7 +55,7 @@ module.exports = async function handler(req, res) {
     var form = new FormData();
     form.append('fileId', fileId);
     form.append('file', new Blob([buffer], { type: mime }), filename);
-    form.append('permissions', JSON.stringify(['read("any")']));
+    form.append('permissions[]', JSON.stringify(['read("any")']));
 
     var controller = new AbortController();
     var timeout = setTimeout(function () { controller.abort(); }, 15000);

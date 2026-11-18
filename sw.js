@@ -2,23 +2,23 @@
    sw.js — Service Worker PWA (offline-first para el shell)
    La data dinámica NO se cachea: siempre se lee del storage local.
    ============================================================ */
-var CACHE = 'migl-shell-v27';
+var CACHE = 'migl-shell-v29';
 var SHELL = [
   './', './index.html', './explorar.html', './comercio.html', './promociones.html',
   './favoritos.html', './registrar-negocio.html', './mi-negocio.html', './cuenta.html', './mensajes.html', './admin.html',
   './login.html', './registro.html',
   './nosotros.html', './contacto.html', './preguntas-frecuentes.html',
   './manifest.json', './icons/icon.svg',
-  './css/variables.css?v=27', './css/global.css?v=27', './css/pages.css?v=27',
-  './js/icons.js?v=27', './js/firebase-config.js?v=27', './js/appwrite-config.js?v=27',
-  './js/storage-service.js?v=27', './js/firestore-service.js?v=27',
-  './js/ai-menu-scanner.js?v=27', './js/data-service.js?v=27', './js/auth-service.js?v=27',
-  './js/ui-core.js?v=27', './js/menu-loader.js?v=27',
-  './js/page-home.js?v=27', './js/page-explorar.js?v=27', './js/page-comercio.js?v=27', './js/page-promociones.js?v=27',
-  './js/page-favoritos.js?v=27', './js/page-cuenta.js?v=27', './js/page-mensajes.js?v=27', './js/page-registro.js?v=27',
-  './js/page-mi-negocio.js?v=27', './js/page-admin.js?v=27',
-  './js/page-login.js?v=27', './js/page-registro-usuario.js?v=27',
-  './js/page-nosotros.js?v=27', './js/page-contacto.js?v=27', './js/page-faq.js?v=27'
+  './css/variables.css?v=29', './css/global.css?v=29', './css/pages.css?v=29',
+  './js/icons.js?v=29', './js/firebase-config.js?v=29', './js/appwrite-config.js?v=29',
+  './js/storage-service.js?v=29', './js/firestore-service.js?v=29',
+  './js/ai-menu-scanner.js?v=29', './js/data-service.js?v=29', './js/auth-service.js?v=29',
+  './js/ui-core.js?v=29', './js/menu-loader.js?v=29',
+  './js/page-home.js?v=29', './js/page-explorar.js?v=29', './js/page-comercio.js?v=29', './js/page-promociones.js?v=29',
+  './js/page-favoritos.js?v=29', './js/page-cuenta.js?v=29', './js/page-mensajes.js?v=29', './js/page-registro.js?v=29',
+  './js/page-mi-negocio.js?v=29', './js/page-admin.js?v=29',
+  './js/page-login.js?v=29', './js/page-registro-usuario.js?v=29',
+  './js/page-nosotros.js?v=29', './js/page-contacto.js?v=29', './js/page-faq.js?v=29'
 ];
 
 self.addEventListener('install', function (e) {
