@@ -371,7 +371,15 @@
 .brand-logo-config__info p { margin: 3px 0 0; }
 .brand-logo-config__preview {
   width: 58px; height: 58px; border-radius: 14px; display: grid; place-items: center;
-  background: var(--surface); border: 1px dashed var(--border-strong); overflow: hidden;
+  border: 1px dashed var(--border-strong); overflow: hidden;
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(45deg, rgba(127, 127, 127, .18) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(127, 127, 127, .18) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(127, 127, 127, .18) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(127, 127, 127, .18) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
 }
 .brand-logo-config__preview img { width: 100%; height: 100%; object-fit: contain; padding: 5px; }
 .brand-logo-config__actions { display: flex; flex-direction: column; gap: 6px; }

@@ -560,6 +560,7 @@
     quality = quality || .78;
     return new Promise(function (resolve, reject) {
       if (!file || !/^image\//.test(file.type)) return reject(new Error('Archivo no es imagen'));
+      var mime = (file.type === 'image/png' || file.type === 'image/webp') ? file.type : 'image/jpeg';
       var reader = new FileReader();
       reader.onload = function () {
         var img = new Image();
@@ -569,7 +570,8 @@
           canvas.width = Math.round(img.width * scale);
           canvas.height = Math.round(img.height * scale);
           canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', quality));
+          /* PNG/WebP conservan el canal alfa; JPEG no. */
+          resolve(canvas.toDataURL(mime, quality));
         };
         img.onerror = function () { reject(new Error('No se pudo procesar la imagen')); };
         img.src = reader.result;
