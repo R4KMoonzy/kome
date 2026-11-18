@@ -104,15 +104,17 @@
       var btn = document.getElementById('contact-submit');
       setLoading(btn, true);
       try {
-        await D.addMessage({
+        await D.sendSupportMessage({
           nombre: nombre,
           email: email,
           asunto: String(data.get('asunto') || '').trim(),
           mensaje: mensaje,
           estado: 'pendiente'
-        });
+        }, UI.getSession());
         form.reset();
-        UI.toast('Mensaje enviado. Gracias por escribirnos.', 'success');
+        UI.toast(UI.getSession()
+          ? 'Mensaje enviado. La respuesta aparecerá en tu centro de mensajes.'
+          : 'Mensaje enviado. Gracias por escribirnos.', 'success');
       } catch (err) {
         UI.toast('No se pudo enviar el mensaje. Inténtalo de nuevo.', 'error');
       } finally {

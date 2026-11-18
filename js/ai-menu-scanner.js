@@ -25,8 +25,118 @@
     });
   }
 
+  /* Comprime antes de enviar: evita bodies gigantes y recortes por límite. */
+  function prepareImage(file) {
+    var fallback = function () {
+      return fileToBase64(file).then(function (data) {
+        return { data: data, mime: file.type || 'image/jpeg' };
+      });
+    };
+    if (!global.DataService || typeof global.DataService.compressImage !== 'function') return fallback();
+    return global.DataService.compressImage(file, 1400, .78).then(function (dataUrl) {
+      var match = /^data:([^;]+);base64,/.exec(String(dataUrl || ''));
+      return { data: String(dataUrl).split(',')[1] || '', mime: match ? match[1] : (file.type || 'image/jpeg') };
+    }).catch(fallback);
+  }
+
   function stripFences(text) {
     return String(text || '').replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  }
+
+  /* Gemini a veces agrega texto antes/después del JSON. Devuelve TODOS los
+     bloques balanceados válidos para no quedarse con un array anidado. */
+  function extractJsonCandidates(text) {
+    var s = stripFences(text);
+    var out = [];
+    try { out.push(JSON.parse(s)); } catch (e) { /* se buscan bloques */ }
+
+    for (var i = 0; i < s.length; i++) {
+      if (s.charAt(i) !== '{' && s.charAt(i) !== '[') continue;
+      var open = s.charAt(i);
+      var close = open === '{' ? '}' : ']';
+      var depth = 0, inString = false, escaped = false;
+      for (var j = i; j < s.length; j++) {
+        var ch = s.charAt(j);
+        if (inString) {
+          if (escaped) escaped = false;
+          else if (ch === '\\') escaped = true;
+          else if (ch === '"') inString = false;
+          continue;
+        }
+        if (ch === '"') { inString = true; continue; }
+        if (ch === open) depth++;
+        else if (ch === close) {
+          depth--;
+          if (depth === 0) {
+            try { out.push(JSON.parse(s.slice(i, j + 1))); } catch (e2) { /* bloque inválido */ }
+            break;
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  function cleanText(value) {
+    return String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+  }
+
+  /* Evita que un precio o un número acabe escrito en la categoría. */
+  function safeCategory(value, fallback) {
+    var cat = cleanText(value).replace(/^[:•\-\s]+|[:•\-\s]+$/g, '');
+    if (!cat || /^[\d\s.,₡$€¢]+$/.test(cat) || cat.length > 48) {
+      return cleanText(fallback) || 'General';
+    }
+    return cat;
+  }
+
+  function normalizeItems(raw, defaultCategory) {
+    if (!Array.isArray(raw)) return [];
+    return raw.map(function (it) {
+      if (!it || typeof it !== 'object') return null;
+      var nombre = cleanText(it.nombre || it.name || it.producto || it.platillo);
+      /* Descarta bits sueltos que no son productos (precio sin nombre). */
+      if (!nombre || /^[\d\s.,₡$€¢]+$/.test(nombre)) return null;
+      return {
+        nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1),
+        categoria: safeCategory(it.categoria || it.category, defaultCategory),
+        precio: parsePrice(it.precio || it.price),
+        descripcion: cleanText(it.descripcion || it.description || it.detalle),
+        etiqueta: cleanText(it.etiqueta || it.tag)
+      };
+    }).filter(Boolean);
+  }
+
+  /* Acepta la forma agrupada nueva y también respuestas planas anteriores. */
+  function flattenGeminiPayload(payload) {
+    var out = [];
+    if (Array.isArray(payload)) return normalizeItems(payload, 'General');
+    if (!payload || typeof payload !== 'object') return [];
+
+    var groups = payload.categorias || payload.categories || payload.secciones || payload.sections;
+    if (Array.isArray(groups)) {
+      groups.forEach(function (g) {
+        if (!g || typeof g !== 'object') return;
+        var categoria = safeCategory(g.categoria || g.category || g.nombre || g.name || g.titulo || g.title, 'General');
+        var productos = g.productos || g.products || g.items || g.platillos || [];
+        out = out.concat(normalizeItems(productos, categoria));
+      });
+      if (out.length) return out;
+    }
+
+    var categoriaDirecta = safeCategory(payload.categoria || payload.category, 'General');
+    var productos = payload.productos || payload.products || payload.items || payload.platillos;
+    if (Array.isArray(productos)) return normalizeItems(productos, categoriaDirecta);
+    return [];
+  }
+
+  function flattenGeminiText(text) {
+    var candidates = extractJsonCandidates(text);
+    for (var i = 0; i < candidates.length; i++) {
+      var out = flattenGeminiPayload(candidates[i]);
+      if (out.length) return out;
+    }
+    return [];
   }
 
   /* ---------- Parser determinista de texto OCR ---------- */
@@ -86,27 +196,31 @@
     var items = [];
     var currentCategory = 'General';
     lines.forEach(function (line) {
-      /* Encabezado de sección: "BEBIDAS" o "Bebidas:" sin precio */
-      if (!/\d/.test(line) && line.length < 34 && /:$/.test(line.trim())) {
-        currentCategory = guessCategory(line) !== 'General' ? guessCategory(line) : line.replace(/:$/, '').trim();
+      var hasNumber = /\d/.test(line);
+      var header = line.replace(/[:\-–—]+$/, '').trim();
+
+      /* Encabezado de sección: "BEBIDAS", "Bebidas:" o "Postres" sin precio. */
+      if (!hasNumber && header.length <= 34 &&
+          (/:$/.test(line.trim()) || header === header.toUpperCase() || guessCategory(header) !== 'General')) {
+        currentCategory = safeCategory(header, currentCategory);
         return;
       }
-      if (!/\d/.test(line)) return;
+      if (!hasNumber) return;
 
-      var priceMatch = line.match(/(?:₡|¢|CRC|US\$|\$|€)?\s*(\d[\d.,]*)(?!.*\d)/);
-      if (!priceMatch) {
-        priceMatch = line.match(/(₡|¢|\$)\s*(\d[\d.,]*)/);
-        if (priceMatch) priceMatch[1] = priceMatch[2];
-      }
-      if (!priceMatch) return;
-      var price = parsePrice(priceMatch[1]);
+      /* Siempre el último número de la línea: evita meter el precio en el
+         nombre cuando hay más de una cifra (ej. "Combo 2 4500"). */
+      var matches = line.match(/(?:₡|¢|CRC|US\$|\$|€)?\s*\d[\d.,]*/g);
+      if (!matches || !matches.length) return;
+      var rawPrice = matches[matches.length - 1].trim();
+      var price = parsePrice(rawPrice);
       if (!price) return;
+      var priceIndex = line.lastIndexOf(rawPrice);
 
-      var name = line.slice(0, priceMatch.index)
-        .replace(/(₡|¢|US\$|\$|€)\s*$/i, '').trim()
+      var name = line.slice(0, priceIndex)
+        .replace(/(₡|¢|CRC|US\$|\$|€)\s*$/i, '').trim()
         .replace(/[.·\-–—:_]+$/g, '').trim();
-      if (name.length < 2) return;
-      var desc = line.slice((priceMatch.index || 0) + priceMatch[0].length)
+      if (name.length < 2 || /^[\d\s.,₡$€¢]+$/.test(name)) return;
+      var desc = line.slice(priceIndex + rawPrice.length)
         .replace(/^[\s.\-–—:]+/, '').trim();
       if (desc.length < 4) desc = '';
 
@@ -123,35 +237,28 @@
 
   /* ---------- Gemini Flash vía proxy seguro ---------- */
   function scanWithGemini(file, onProgress) {
-    return fileToBase64(file).then(function (base64) {
+    if (onProgress) onProgress('Preparando imagen…', 12);
+    return prepareImage(file).then(function (image) {
       if (onProgress) onProgress('Enviando imagen al analizador…', 45);
-      var mime = file.type || 'image/jpeg';
-      var prompt = 'Analiza esta imagen de un menú impreso, volante o pizarra. ' +
-        'Extrae ÚNICAMENTE los productos/platillos que se lean. Responde con un JSON array ' +
-        'de objetos con las claves exactas: nombre, categoria, precio (solo número), descripcion. ' +
-        'No inventes productos. Si no se puede leer nada devuelve [].';
+      var prompt = 'Analiza esta imagen de un menú impreso, volante, cartelera o pizarra. ' +
+        'Extrae ÚNICAMENTE lo que se lee, sin inventar nada. ' +
+        'Responde con un JSON válido con esta forma exacta: ' +
+        '{"categorias":[{"categoria":"Nombre de la sección","productos":[{"nombre":"Producto","precio":"solo número","descripcion":"detalle opcional"}]}]}. ' +
+        'Respeta las secciones impresas: coloca cada producto dentro de la categoría correspondiente. ' +
+        'Si no ves una sección clara, usa "General". ' +
+        'Incluye TODOS los productos visibles; no resumas, no limites la cantidad y no omitas ninguno. ' +
+        'Si no se puede leer nada, devuelve {"categorias":[]}. ' +
+        'No agregues texto fuera del JSON.';
 
       return fetch(AppAIConfig.geminiProxy, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompt, mime: mime, data: base64 })
+        body: JSON.stringify({ prompt: prompt, mime: image.mime, data: image.data })
       }).then(function (r) {
         if (!r.ok) throw new Error('El analizador respondió ' + r.status + '.');
         return r.json();
       }).then(function (json) {
-        var text = json && json.text;
-        var parsed;
-        try { parsed = JSON.parse(stripFences(text)); } catch (e) { parsed = []; }
-        if (!Array.isArray(parsed)) parsed = [];
-        return parsed.map(function (it) {
-          return {
-            nombre: String(it.nombre || it.name || '').trim(),
-            categoria: String(it.categoria || it.category || 'General').trim() || 'General',
-            precio: parsePrice(it.precio || it.price || ''),
-            descripcion: String(it.descripcion || it.description || '').trim(),
-            etiqueta: ''
-          };
-        }).filter(function (it) { return it.nombre; });
+        return flattenGeminiText(json && json.text);
       });
     });
   }
@@ -197,17 +304,19 @@
       engines.push(function () { return Promise.resolve(parseMenuText(options.manualText)); });
     }
 
-    function run(index) {
-      if (index >= engines.length) {
-        return Promise.reject(new Error('Sin analizador disponible. Pega el texto del menú para continuar.'));
-      }
-      return engines[index]().catch(function () {
+    function run(index, previous) {
+      if (index >= engines.length) return Promise.resolve(previous || []);
+      return engines[index]().then(function (items) {
+        /* Si Gemini no leyó nada, probamos OCR antes de rendirnos. */
+        if (items && items.length) return items;
+        return run(index + 1, previous);
+      }).catch(function () {
         if (onProgress) onProgress('Usando método de respaldo…', 35);
-        return run(index + 1);
+        return run(index + 1, previous);
       });
     }
 
-    return run(0).then(function (items) {
+    return run(0, []).then(function (items) {
       if (onProgress) onProgress('Procesando tarjetas detectadas…', 88);
       return items.filter(function (it) { return it && it.nombre; });
     });
@@ -218,6 +327,7 @@
     scanMenuImageWithAI: scanMenuImageWithAI,
     parseMenuText: parseMenuText,
     parsePrice: parsePrice,
+    flattenGeminiText: flattenGeminiText,
     isGeminiReady: function () { return !!AppAIConfig.geminiProxy; }
   };
 })(window);

@@ -18,7 +18,8 @@
     theme: PREFIX + 'theme',
     cookies: PREFIX + 'cookies',
     admin: PREFIX + 'admin',
-    messages: PREFIX + 'messages'
+    messages: PREFIX + 'messages',
+    inbox: PREFIX + 'inbox'
   };
 
   var DEFAULT_CONFIG = {
@@ -205,6 +206,140 @@
     var list = (await getMessages()).filter(function (m) { return m.id !== id; });
     write(KEYS.messages, list);
     return true;
+  }
+
+  /* ---------------- Centro de mensajes del usuario ----------------
+     El buzón vive en users/{uid}.inbox: las reglas actuales ya permiten
+     que cada usuario lea y actualice su propio documento. */
+  function inboxKey(uid) { return KEYS.inbox + ':' + uid; }
+
+  async function getInbox(uid) {
+    if (!uid) return [];
+    var list = [];
+    if (await fs()) {
+      var user = await global.FirestoreService.get('users', uid);
+      list = (user && Array.isArray(user.inbox)) ? user.inbox : [];
+    } else {
+      var local = read(inboxKey(uid), []);
+      list = Array.isArray(local) ? local : [];
+    }
+    return list.slice().sort(function (a, b) {
+      return String((b && b.fecha) || '').localeCompare(String((a && a.fecha) || ''));
+    });
+  }
+
+  async function pushInbox(userUid, message) {
+    if (!userUid || !message) return null;
+    var item = Object.assign({
+      id: uid(), tipo: 'general', titulo: '', cuerpo: '', estado: 'nuevo',
+      leido: false, referencia: '', fecha: new Date().toISOString()
+    }, message || {});
+    try {
+      if (await fs()) {
+        await global.FirestoreService.arrayAdd('users', userUid, 'inbox', item);
+      } else {
+        var list = await getInbox(userUid);
+        list.unshift(item);
+        write(inboxKey(userUid), list.slice(0, 100));
+      }
+    } catch (err) {
+      /* El buzón es auxiliar: nunca debe bloquear la acción principal. */
+      /* eslint-disable no-console */
+      console.warn('[Inbox] No se pudo guardar el mensaje:', err);
+    }
+    emit();
+    return item;
+  }
+
+  async function updateInbox(uid, id, patch) {
+    var list = await getInbox(uid);
+    var idx = -1;
+    for (var i = 0; i < list.length; i++) { if (list[i].id === id) { idx = i; break; } }
+    if (idx === -1) return null;
+    list[idx] = Object.assign({}, list[idx], patch || {});
+    try {
+      if (await fs()) await global.FirestoreService.update('users', uid, { inbox: list });
+      else write(inboxKey(uid), list);
+    } catch (err) {
+      /* eslint-disable no-console */
+      console.warn('[Inbox] No se pudo actualizar el mensaje:', err);
+    }
+    emit();
+    return list[idx];
+  }
+
+  function markInboxRead(uid, id) { return updateInbox(uid, id, { leido: true }); }
+
+  async function unreadInboxCount(uid) {
+    var list = await getInbox(uid);
+    return list.filter(function (m) { return m && !m.leido; }).length;
+  }
+
+  async function notifyRequestStatus(request, status) {
+    if (!request || !request.ownerId) return null;
+    var name = request.name || 'tu negocio';
+    var titles = {
+      pendiente: 'Recibimos tu solicitud',
+      aprobado: '¡Tu negocio fue autorizado!',
+      rechazado: 'Actualización sobre tu solicitud'
+    };
+    var bodies = {
+      pendiente: 'Recibimos la solicitud de «' + name + '». El equipo Kome la revisará y te avisaremos aquí.',
+      aprobado: '¡Listo! «' + name + '» fue autorizado y ya aparece en el directorio. Entra a «Mi negocio» para revisar tu menú y tus datos.',
+      rechazado: 'La solicitud de «' + name + '» no fue autorizada en esta ocasión. Si necesitas detalles, escríbenos desde Contacto.'
+    };
+    return pushInbox(request.ownerId, {
+      id: 'req-' + request.id + '-' + status,
+      tipo: 'solicitud',
+      titulo: titles[status] || 'Actualización de solicitud',
+      cuerpo: bodies[status] || '',
+      estado: status || 'pendiente',
+      referencia: request.id
+    });
+  }
+
+  async function sendSupportMessage(data, session) {
+    var item = Object.assign({ tipo: 'soporte', uid: session ? session.uid : '' }, data || {});
+    var msg = await addMessage(item);
+    if (session && session.uid) {
+      await pushInbox(session.uid, {
+        id: 'support-' + msg.id,
+        tipo: 'soporte',
+        titulo: 'Mensaje enviado al soporte',
+        cuerpo: 'Recibimos tu mensaje' + (msg.asunto ? ' («' + msg.asunto + '»)' : '') +
+          '. La respuesta del equipo Kome aparecerá en este centro de mensajes.',
+        estado: msg.estado || 'pendiente',
+        referencia: msg.id
+      });
+    }
+    return msg;
+  }
+
+  async function replyToMessage(id, text) {
+    var body = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+    if (!body) throw new Error('Escribe la respuesta.');
+    var list = await getMessages();
+    var original = list.find(function (m) { return m.id === id; });
+    if (!original) return null;
+    var threadId = original.threadId || original.id;
+    var reply = await addMessage({
+      tipo: 'respuesta', parentId: original.id, threadId: threadId,
+      uid: original.uid || '', nombre: original.nombre || '', email: original.email || '',
+      asunto: original.asunto ? 'Re: ' + original.asunto : 'Respuesta de soporte',
+      mensaje: body, estado: 'respondido', from: 'kome'
+    });
+    await updateMessage(id, { estado: 'respondido', respuesta: body, respondidoAt: reply.createdAt });
+    if (original.uid) {
+      await pushInbox(original.uid, {
+        id: 'reply-' + reply.id,
+        tipo: 'respuesta',
+        titulo: 'Respuesta del equipo Kome',
+        cuerpo: body,
+        estado: 'respondido',
+        referencia: threadId
+      });
+    }
+    return reply;
   }
 
   /* ---------------- Negocios ---------------- */
@@ -605,6 +740,9 @@
     getSession: getSession, login: login, updateProfile: updateProfile, logout: logout,
     getReviews: getReviews, addReview: addReview,
     getMessages: getMessages, addMessage: addMessage, updateMessage: updateMessage, deleteMessage: deleteMessage,
+    getInbox: getInbox, pushInbox: pushInbox, updateInbox: updateInbox, markInboxRead: markInboxRead,
+    unreadInboxCount: unreadInboxCount, notifyRequestStatus: notifyRequestStatus,
+    sendSupportMessage: sendSupportMessage, replyToMessage: replyToMessage,
     getStats: getStats, isAdminUnlocked: isAdminUnlocked, setAdminUnlocked: setAdminUnlocked,
     formatMoney: formatMoney, categoryById: categoryById, greeting: greeting,
     escapeHtml: escapeHtml, compressImage: compressImage,

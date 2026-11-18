@@ -233,8 +233,11 @@
 
       UI.qsa('[data-approve]', host).forEach(function (b) {
         b.addEventListener('click', async function () {
-          await D.approveRequest(b.getAttribute('data-approve'));
-          UI.toast('Solicitud aprobada y publicada', 'success');
+          var id = b.getAttribute('data-approve');
+          var req = (await D.getRequests()).find(function (r) { return r.id === id; });
+          await D.approveRequest(id);
+          if (req) { try { await D.notifyRequestStatus(req, 'aprobado'); } catch (e) { /* aviso auxiliar */ } }
+          UI.toast('Solicitud aprobada y aviso enviado al centro de mensajes', 'success');
           await renderRequests(); await renderBusinesses();
         });
       });
@@ -247,8 +250,12 @@
             '<button class="btn btn--danger btn--block" id="admin-reject-confirm">Rechazar</button></div>', function (w, close) {
               document.getElementById('admin-reject-confirm').addEventListener('click', async function () {
                 var req = (await D.getRequests()).find(function (r) { return r.id === id; });
-                if (req) { req.estado = 'rechazado'; await D.saveRequest(req); }
-                close(); UI.toast('Solicitud rechazada', 'info'); renderRequests();
+                if (req) {
+                  req.estado = 'rechazado';
+                  await D.saveRequest(req);
+                  try { await D.notifyRequestStatus(req, 'rechazado'); } catch (e) { /* aviso auxiliar */ }
+                }
+                close(); UI.toast('Solicitud rechazada y aviso enviado', 'info'); renderRequests();
               });
             });
         });
@@ -634,16 +641,17 @@
     async function renderSupport() {
       var host = document.getElementById('admin-soporte');
       if (!host) return;
-      var list = await D.getMessages();
+      var list = (await D.getMessages()).filter(function (m) { return !m.tipo || m.tipo === 'soporte'; });
       host.innerHTML = '<div class="config-banner">' + I.svg('chat', { size: 18, style: 'color:var(--brand-blue)' }) +
-        '<strong>Bandeja de soporte</strong><p class="tiny muted">Mensajes enviados desde la página de Contacto. Marca el estado, responde por correo o elimina el mensaje.</p></div>' +
+        '<strong>Bandeja de soporte</strong><p class="tiny muted">Mensajes enviados desde Contacto. Responde aquí y la respuesta quedará guardada en el centro de mensajes de la persona.</p></div>' +
         '<div class="card" style="padding:20px" id="admin-support-list"></div>' +
         '<p class="tiny muted" style="margin-top:10px">Bandeja local: los mensajes se guardan en este navegador hasta conectar Firestore. Al conectar el servicio se sincronizarán aquí.</p>';
       var box = document.getElementById('admin-support-list');
       function paint() {
         box.innerHTML = list.length ? list.map(function (m) {
-          var badge = m.estado === 'resuelto' ? 'badge--open' : m.estado === 'leido' ? 'badge--new' : 'badge--hot';
-          var label = m.estado === 'resuelto' ? 'Resuelto' : m.estado === 'leido' ? 'Leído' : 'Pendiente';
+          var done = m.estado === 'resuelto' || m.estado === 'respondido';
+          var badge = done ? 'badge--open' : m.estado === 'leido' ? 'badge--new' : 'badge--hot';
+          var label = m.estado === 'respondido' ? 'Respondido' : m.estado === 'resuelto' ? 'Resuelto' : m.estado === 'leido' ? 'Leído' : 'Pendiente';
           return '<div class="support-msg" data-msg="' + esc(m.id) + '">' +
             '<div class="support-msg__head"><div><strong>' + esc(m.nombre || 'Sin nombre') + '</strong>' +
               '<span class="tiny muted">' + esc(m.email || 'Sin correo') + '</span></div>' +
@@ -652,10 +660,13 @@
                 '<span class="tiny muted">' + new Date(m.createdAt).toLocaleString('es-CR') + '</span></div></div>' +
             (m.asunto ? '<p class="support-msg__subject">' + esc(m.asunto) + '</p>' : '') +
             '<p class="support-msg__body">' + esc(m.mensaje || '').replace(/\n/g, '<br>') + '</p>' +
+            (m.respuesta ? '<div class="support-msg__reply"><strong>Respuesta enviada:</strong><br>' +
+              esc(m.respuesta).replace(/\n/g, '<br>') + '</div>' : '') +
             '<div class="support-msg__actions">' +
-              (m.estado !== 'leido' && m.estado !== 'resuelto' ? '<button class="btn btn--ghost btn--sm" data-msg-act="leido" data-msg-id="' + esc(m.id) + '">Marcar leído</button>' : '') +
-              (m.estado !== 'resuelto' ? '<button class="btn btn--blue btn--sm" data-msg-act="resuelto" data-msg-id="' + esc(m.id) + '">Marcar resuelto</button>' : '') +
-              (m.email ? '<a class="btn btn--outline btn--sm" href="mailto:' + encodeURIComponent(m.email) + '?subject=' + encodeURIComponent('Re: ' + (m.asunto || 'Tu mensaje')) + '">' + I.svg('mail', { size: 14 }) + 'Responder</a>' : '') +
+              (m.estado === 'pendiente' ? '<button class="btn btn--ghost btn--sm" data-msg-act="leido" data-msg-id="' + esc(m.id) + '">Marcar leído</button>' : '') +
+              (!done ? '<button class="btn btn--blue btn--sm" data-msg-act="responder" data-msg-id="' + esc(m.id) + '">' + I.svg('chat', { size: 14 }) + 'Responder en el buzón</button>' : '') +
+              (m.email ? '<a class="btn btn--outline btn--sm" href="mailto:' + encodeURIComponent(m.email) + '?subject=' + encodeURIComponent('Re: ' + (m.asunto || 'Tu mensaje')) + '">' + I.svg('mail', { size: 14 }) + 'Correo</a>' : '') +
+              (done ? '<button class="btn btn--ghost btn--sm" data-msg-act="resuelto" data-msg-id="' + esc(m.id) + '">Marcar resuelto</button>' : '') +
               '<button class="icon-btn" data-msg-act="eliminar" data-msg-id="' + esc(m.id) + '" style="color:#e11d48" aria-label="Eliminar mensaje">' + I.svg('trash', { size: 15 }) + '</button>' +
             '</div></div>';
         }).join('') : UI.empty({ art: 'business', title: 'Sin mensajes', text: 'Cuando alguien use el formulario de Contacto, su mensaje aparecerá aquí.' });
@@ -669,6 +680,28 @@
         if (!btn) return;
         var id = btn.getAttribute('data-msg-id');
         var act = btn.getAttribute('data-msg-act');
+        if (act === 'responder') {
+          var original = list.find(function (m) { return m.id === id; });
+          UI.openModal(UI.modalHead('Responder a ' + (original && original.nombre ? original.nombre : 'la persona')) +
+            '<p class="muted tiny">La respuesta se guardará en el centro de mensajes de ' +
+            (original && original.uid ? 'esta cuenta' : (original && original.email ? esc(original.email) : 'la persona')) + '.</p>' +
+            '<div class="field" style="margin-top:12px"><label class="field__label">Tu respuesta</label>' +
+            '<textarea class="textarea" id="admin-reply-text" rows="5" maxlength="2000" placeholder="Escribe aquí tu respuesta…"></textarea></div>' +
+            '<div class="modal__foot"><button class="btn btn--ghost btn--block" data-modal-close>Cancelar</button>' +
+            '<button type="button" class="btn btn--primary btn--block" id="admin-reply-send">Enviar respuesta</button></div>', function (w, close) {
+              var send = function () {
+                var text = document.getElementById('admin-reply-text').value.trim();
+                if (!text) { UI.toast('Escribe la respuesta.', 'error'); return; }
+                D.replyToMessage(id, text).then(function () {
+                  close();
+                  UI.toast('Respuesta enviada al centro de mensajes', 'success');
+                  renderSupport();
+                }).catch(function (err) { UI.toast(err.message || 'No se pudo enviar la respuesta.', 'error'); });
+              };
+              document.getElementById('admin-reply-send').addEventListener('click', send);
+            });
+          return;
+        }
         if (act === 'eliminar') {
           await D.deleteMessage(id);
           list = list.filter(function (m) { return m.id !== id; });

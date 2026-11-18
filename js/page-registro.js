@@ -186,7 +186,8 @@
       btn.disabled = true;
       try {
         await D.saveRequest(req);
-        UI.toast('Solicitud enviada. Queda pendiente de revisión.', 'success');
+        try { await D.notifyRequestStatus(req, 'pendiente'); } catch (e) { /* el buzón no bloquea el envío */ }
+        UI.toast('Solicitud enviada. Te avisaremos en tu centro de mensajes.', 'success');
         window.setTimeout(function () { window.location.href = 'index.html'; }, 1400);
       } catch (err) {
         btn.disabled = false;

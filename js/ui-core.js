@@ -244,6 +244,7 @@
           '<button class="drawer-link" data-nav="registrar-negocio.html?tipo=restaurante">' + I.svg('store', { size: 19 }) + '<span>Registra tu restaurante</span></button>' +
           '<button class="drawer-link" data-nav="registrar-negocio.html?tipo=tienda">' + I.svg('box', { size: 19 }) + '<span>Registra tu tienda</span></button>' +
           '<button class="drawer-link" data-nav="registrar-negocio.html?tipo=pauta">' + I.svg('chart', { size: 19 }) + '<span>Pauta con nosotros</span></button>' +
+          '<button class="drawer-link" data-nav="mensajes.html">' + I.svg('chat', { size: 19 }) + '<span>Centro de mensajes <small id="drawer-inbox-badge"></small></span></button>' +
           '<button class="drawer-link" data-nav="admin.html">' + I.svg('shield', { size: 19 }) + '<span>Acceso Administrativo</span></button>' +
           '<div class="drawer-zone">' + I.svg('location', { size: 15, style: 'display:inline-block;vertical-align:-3px;margin-right:5px' }) +
             'Tu zona: <strong id="drawer-zone">No definida</strong>' +
@@ -289,6 +290,8 @@
       '<div class="header-actions">' +
         '<button class="icon-btn" data-theme-toggle aria-label="Cambiar tema">' + I.svg('moon', { size: 19 }) + '</button>' +
         '<a class="icon-btn" href="favoritos.html" aria-label="Favoritos">' + I.svg('heart', { size: 19 }) + '</a>' +
+        '<a class="icon-btn inbox-header-btn" href="mensajes.html" aria-label="Centro de mensajes">' + I.svg('chat', { size: 19 }) +
+          '<span class="inbox-header-badge hidden" id="header-inbox-badge">0</span></a>' +
         '<div class="profile-wrap" id="profile-wrap">' + avatarHtml(session) +
           '<div class="profile-menu hidden" id="profile-menu">' +
             '<div class="profile-menu__head"><div class="profile-menu__name">' + esc(session ? session.name : '') + '</div>' +
@@ -296,6 +299,7 @@
             '<a class="menu-item" href="cuenta.html">' + I.svg('user', { size: 17 }) + 'Mi cuenta</a>' +
             '<a class="menu-item" href="favoritos.html">' + I.svg('heart', { size: 17 }) + 'Mis favoritos</a>' +
             '<a class="menu-item" href="mi-negocio.html">' + I.svg('store', { size: 17 }) + 'Mi negocio</a>' +
+            '<a class="menu-item" href="mensajes.html">' + I.svg('chat', { size: 17 }) + 'Centro de mensajes <span class="menu-item__badge" id="profile-inbox-badge"></span></a>' +
             '<a class="menu-item" href="admin.html">' + I.svg('shield', { size: 17 }) + 'Administración</a>' +
             '<div class="menu-divider"></div>' +
             '<button class="menu-item menu-item--danger" data-logout>' + I.svg('logout', { size: 17 }) + 'Cerrar sesión</button>' +
@@ -317,7 +321,7 @@
           navItems().filter(function (n) { return n.key !== 'inicio' && n.key !== 'explorar'; }).map(function (n) {
             return '<a href="' + esc(n.href) + '">' + esc(n.label) + '</a>';
           }).join('') +
-          '<a href="cuenta.html">Mi cuenta</a><button data-zone>Cambiar zona</button></div>' +
+          '<a href="cuenta.html">Mi cuenta</a><a href="mensajes.html">Centro de mensajes</a><button data-zone>Cambiar zona</button></div>' +
       '</div>' +
       '<div class="app-footer__bottom"><span>© ' + new Date().getFullYear() + ' <span data-app-name>MiGuía Local</span>. Directorio informativo.</span>' +
       '<span>Sin carrito · Sin cobros internos · Contacto directo</span></div>' +
@@ -456,11 +460,13 @@
         '<a class="menu-item" href="cuenta.html">' + I.svg('user', { size: 17 }) + 'Mi cuenta</a>' +
         '<a class="menu-item" href="favoritos.html">' + I.svg('heart', { size: 17 }) + 'Mis favoritos</a>' +
         '<a class="menu-item" href="mi-negocio.html">' + I.svg('store', { size: 17 }) + 'Mi negocio</a>' +
+        '<a class="menu-item" href="mensajes.html">' + I.svg('chat', { size: 17 }) + 'Centro de mensajes <span class="menu-item__badge" id="profile-inbox-badge"></span></a>' +
         '<a class="menu-item" href="admin.html">' + I.svg('shield', { size: 17 }) + 'Administración</a>' +
         '<div class="menu-divider"></div>' +
         '<button class="menu-item menu-item--danger" data-logout>' + I.svg('logout', { size: 17 }) + 'Cerrar sesión</button>' +
       '</div>';
     var du = qs('#drawer-user'); if (du) du.textContent = session ? session.name : 'Invitado';
+    syncInboxBadge();
   }
 
   /* ---------------- Búsqueda omnicanal ---------------- */
@@ -530,6 +536,21 @@
         b.innerHTML = I.svg(active ? 'heartFilled' : 'heart', { size: b.classList.contains('fav-btn--lg') ? 22 : 18 });
       });
     });
+  }
+
+  function syncInboxBadge() {
+    var uid = session && session.uid;
+    var count = 0;
+    function paint() {
+      var h = qs('#header-inbox-badge');
+      if (h) { h.textContent = count; h.classList.toggle('hidden', count === 0); }
+      var p = qs('#profile-inbox-badge'); if (p) p.textContent = count ? '(' + count + ')' : '';
+      var d = qs('#drawer-inbox-badge'); if (d) d.textContent = count ? '(' + count + ')' : '';
+    }
+    if (!uid) { paint(); return; }
+    Promise.resolve(D.unreadInboxCount(uid)).then(function (n) {
+      count = n || 0; paint();
+    }).catch(function () { paint(); });
   }
 
   function heartBurst(el) {
@@ -738,6 +759,7 @@
         var c = qs('#promo-count'); if (c) c.textContent = list.length;
       });
       syncFavorites();
+      syncInboxBadge();
     });
 
     /* Solo aquí esperamos a la red y al load de la página: el shell y los

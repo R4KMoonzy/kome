@@ -259,6 +259,9 @@ body.has-notice { --notice-h: 30px; }
 .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border-radius: var(--r-xs); font-size: .86rem; text-align: left; }
 .menu-item:hover { background: var(--bg-3); }
 .menu-item--danger { color: #e11d48; }
+.menu-item__badge { margin-left: auto; font-size: .72rem; font-weight: var(--fw-bold); color: var(--brand-blue); }
+.inbox-header-btn { position: relative; }
+.inbox-header-badge { position: absolute; top: -3px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: var(--brand-coral); color: #fff; font-size: .6rem; font-weight: var(--fw-bold); display: grid; place-items: center; border: 2px solid var(--surface); }
 .menu-divider { height: 1px; background: var(--border); margin: 6px 0; }
 
 /* ---------- Drawer lateral ---------- */

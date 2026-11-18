@@ -8,6 +8,7 @@
 
   var I = global.AppIcons;
   var D = global.DataService;
+  var UI = global.UI;
   var esc = D.escapeHtml;
 
   function q(sel, root) { return (root || document).querySelector(sel); }
@@ -27,6 +28,12 @@
 
   var TAG_OPTIONS = ['', 'Nuevo', 'Más vendido', 'Agotado'];
   var CATEGORY_SUGGESTIONS = ['Platos Fuertes', 'Bebidas', 'Combos', 'Entradas', 'Postres', 'Pizzas', 'Rápida', 'General'];
+
+  function categoryOptions() {
+    return CATEGORY_SUGGESTIONS.map(function (c) {
+      return '<option value="' + esc(c) + '"></option>';
+    }).join('');
+  }
 
   function tagOptions(selected) {
     return TAG_OPTIONS.map(function (t) {
@@ -63,7 +70,7 @@
     var onChange = options.onChange || function () {};
 
     container.innerHTML =
-      '<datalist id="ml-cat-suggestions">' + CATEGORY_SUGGESTIONS.map(function (c) { return '<option value="' + esc(c) + '"></option>'; }).join('') + '</datalist>' +
+      '<datalist id="ml-cat-suggestions">' + categoryOptions() + '</datalist>' +
       '<div class="ml-tabs" role="tablist">' +
         '<button type="button" class="ml-tab is-active" data-tab="manual" role="tab">' + I.svg('edit', { size: 17 }) + '<span>Carga manual</span></button>' +
         '<button type="button" class="ml-tab" data-tab="excel" role="tab">' + I.svg('file', { size: 17 }) + '<span>Excel / CSV</span></button>' +
@@ -84,8 +91,9 @@
           '</div>' +
           '<div class="form-grid form-grid--1">' +
             '<div class="field"><label class="field__label">Nombre <span class="req">*</span></label><input class="input" id="ml-nombre" placeholder="Ej. Pollo asado con arroz"></div>' +
-            '<div class="field"><label class="field__label">Categoría del menú <span class="req">*</span></label>' +
-              '<input class="input" id="ml-categoria" list="ml-cat-suggestions" placeholder="Ej. Platos Fuertes"></div>' +
+            '<div class="field"><label class="field__label">Categoría del menú</label>' +
+              '<input class="input" id="ml-categoria" list="ml-cat-suggestions" placeholder="Ej. Platos Fuertes">' +
+              '<button type="button" class="btn btn--ghost btn--sm" id="ml-new-category" style="margin-top:6px">' + I.svg('plus', { size: 14 }) + ' Crear categoría</button></div>' +
             '<div class="form-grid">' +
               '<div class="field"><label class="field__label">Precio (₡) <span class="req">*</span></label><input class="input" id="ml-precio" inputmode="decimal" placeholder="0.00"></div>' +
               '<div class="field"><label class="field__label">Etiqueta</label><select class="select" id="ml-etiqueta">' + tagOptions('') + '</select></div>' +
@@ -130,6 +138,8 @@
             '<p class="muted tiny">Evita reflejos, mantén el menú completo dentro del cuadro y usa buena luz. Revisa siempre los precios detectados antes de publicar.</p>' +
             '<button type="button" class="btn btn--blue btn--sm" id="ml-scan-start">' + I.svg('sparkles', { size: 15 }) + 'Escanear menú</button>' +
             '<div class="ml-gemini-note tiny muted" id="ml-gemini-note"></div>' +
+            '<p class="ml-scan-warning tiny">' + I.svg('info', { size: 14 }) +
+              'La lectura automática puede equivocarse en nombres, categorías o precios. Revisa cada tarjeta antes de publicar; también podrás editarlas después de que el equipo Kome autorice tu negocio.</p>' +
           '</div>' +
         '</div>' +
         '<div class="ml-progress" id="ml-ai-progress"><div class="progress"><div class="progress__bar" id="ml-ai-bar"></div></div><span class="tiny muted" id="ml-ai-status"></span></div>' +
@@ -143,6 +153,8 @@
       '<div class="ml-results">' +
         '<div class="ml-results__head"><h4>Tarjetas editables <span class="ml-count" id="ml-count">0</span></h4>' +
           '<button type="button" class="btn btn--ghost btn--sm" id="ml-remove-all" ' + (items.length ? '' : 'disabled') + '>' + I.svg('trash', { size: 14 }) + 'Borrar todas</button></div>' +
+        '<div class="ml-scan-notice hidden" id="ml-scan-notice">' + I.svg('info', { size: 16 }) +
+          '<span id="ml-scan-notice-text"></span></div>' +
         '<div class="ml-cards" id="ml-cards"></div>' +
         '<div class="ml-cards-empty" id="ml-cards-empty">' + I.svg('box', { size: 32, style: 'color:var(--text-3);margin:0 auto 10px' }) +
           '<p class="muted">Aún no hay productos. Usa cualquiera de los 3 modos para agregar el primero.</p></div>' +
@@ -150,9 +162,34 @@
 
     var photoData = '';
 
+    /* Categorías creadas por el usuario o detectadas al importar. */
+    function registerCategories(list) {
+      var changed = false;
+      (list || []).forEach(function (cat) {
+        var name = String(cat == null ? '' : cat).replace(/\s+/g, ' ').trim();
+        if (!name || name.length > 48 || CATEGORY_SUGGESTIONS.indexOf(name) !== -1) return;
+        CATEGORY_SUGGESTIONS.push(name);
+        changed = true;
+      });
+      if (changed) q('#ml-cat-suggestions', container).innerHTML = categoryOptions();
+    }
+
     function renderCards() {
-      var host = q('#ml-cards', container);
-      host.innerHTML = items.map(itemCard).join('');
+      /* Agrupamos por categoría sin perder el índice real de cada tarjeta. */
+      var groups = [];
+      var indexes = {};
+      items.forEach(function (it, index) {
+        var cat = String(it.categoria || 'General').trim() || 'General';
+        if (!indexes[cat]) { indexes[cat] = []; groups.push(cat); }
+        indexes[cat].push(index);
+      });
+      q('#ml-cards', container).innerHTML = groups.map(function (cat) {
+        return '<div class="ml-group">' +
+          '<div class="ml-group__head">' + I.svg('tag', { size: 15 }) +
+            '<strong>' + esc(cat) + '</strong><span class="ml-group__count">' + indexes[cat].length + '</span></div>' +
+          indexes[cat].map(function (i) { return itemCard(items[i], i); }).join('') +
+          '</div>';
+      }).join('');
       q('#ml-count', container).textContent = items.length;
       q('#ml-cards-empty', container).classList.toggle('hidden', items.length > 0);
       q('#ml-remove-all', container).disabled = items.length === 0;
@@ -160,18 +197,22 @@
     }
 
     function addMany(list) {
+      var cats = [];
       list.forEach(function (it) {
         if (!it || !it.nombre) return;
+        var cat = String(it.categoria || 'General').trim() || 'General';
+        cats.push(cat);
         items.push({
           _uid: newId(),
           nombre: String(it.nombre || '').trim(),
-          categoria: String(it.categoria || 'General').trim() || 'General',
+          categoria: cat,
           precio: normalizePrice(it.precio),
           descripcion: String(it.descripcion || '').trim(),
           etiqueta: String(it.etiqueta || '').trim(),
           imagen: it.imagen || ''
         });
       });
+      registerCategories(cats);
       renderCards();
     }
 
@@ -200,11 +241,34 @@
       } catch (e) { UI.toast(e.message, 'error'); }
     });
 
+    q('#ml-new-category', container).addEventListener('click', function () {
+      UI.openModal(UI.modalHead('Nueva categoría') +
+        '<p class="muted tiny">Podrás usarla con este producto y con los siguientes.</p>' +
+        '<div class="field" style="margin-top:12px"><label class="field__label">Nombre de la categoría</label>' +
+        '<input class="input" id="ml-cat-new-name" placeholder="Ej. Postres caseros" maxlength="48"></div>' +
+        '<div class="modal__foot"><button class="btn btn--ghost btn--block" data-modal-close>Cancelar</button>' +
+        '<button type="button" class="btn btn--primary btn--block" id="ml-cat-new-save">Crear categoría</button></div>', function (wrap, close) {
+          var input = q('#ml-cat-new-name', wrap);
+          input.focus();
+          function save() {
+            var name = input.value.replace(/\s+/g, ' ').trim();
+            if (!name) { UI.toast('Escribe el nombre de la categoría.', 'error'); return; }
+            registerCategories([name]);
+            q('#ml-categoria', container).value = name;
+            close();
+            UI.toast('Categoría «' + name + '» lista para usar.', 'success');
+          }
+          q('#ml-cat-new-save', wrap).addEventListener('click', save);
+          input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+        });
+    });
+
     q('#ml-add-manual', container).addEventListener('click', function () {
       var nombre = q('#ml-nombre', container).value.trim();
-      var categoria = q('#ml-categoria', container).value.trim();
+      var categoria = q('#ml-categoria', container).value.trim() || 'General';
       var precio = q('#ml-precio', container).value.trim();
-      if (!nombre || !categoria || !precio) { UI.toast('Completa nombre, categoría y precio.', 'error'); return; }
+      if (!nombre) { UI.toast('Escribe el nombre del producto.', 'error'); return; }
+      registerCategories([categoria]);
       addMany([{
         nombre: nombre, categoria: categoria, precio: precio,
         descripcion: q('#ml-descripcion', container).value.trim(),
@@ -319,7 +383,11 @@
           UI.toast('No se detectó texto. Pega el contenido del menú para continuar.', 'info');
         } else {
           addMany(items);
-          UI.toast(items.length + ' platillos detectados. Revísalos antes de guardar.', 'success');
+          var notice = q('#ml-scan-notice', container);
+          q('#ml-scan-notice-text', container).innerHTML = '<strong>' + items.length +
+            ' productos detectados.</strong> La lectura automática no es perfecta: revisa nombres, categorías y precios antes de publicar. Podrás editarlos después de que Kome autorice tu negocio.';
+          notice.classList.remove('hidden');
+          UI.toast('Escaneo listo. Revisa las tarjetas antes de publicar.', 'success');
         }
       } catch (err) {
         progress('ml-ai-progress', 'ml-ai-bar', 100, err.message);
@@ -374,6 +442,15 @@
     });
     q('#ml-cards', container).addEventListener('change', async function (e) {
       var el = e.target;
+      if (el.getAttribute('data-field') === 'categoria') {
+        var ci = parseInt(el.getAttribute('data-index'), 10);
+        if (!isNaN(ci) && items[ci]) {
+          items[ci].categoria = el.value.replace(/\s+/g, ' ').trim() || 'General';
+          registerCategories([items[ci].categoria]);
+          renderCards();
+        }
+        return;
+      }
       var idx = parseInt(el.getAttribute('data-card-image'), 10);
       if (isNaN(idx) || !el.files[0]) return;
       try {
@@ -403,6 +480,7 @@
         });
     });
 
+    registerCategories(items.map(function (it) { return it && it.categoria; }));
     renderCards();
 
     return {
