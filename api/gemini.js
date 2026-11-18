@@ -27,7 +27,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    var model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+    var model = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
     var url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
       model + ':generateContent?key=' + encodeURIComponent(process.env.GEMINI_API_KEY);
 
