@@ -47,6 +47,7 @@ svg { display: block; flex: 0 0 auto; }
 .hidden { display: none !important; }
 
 /* ---------- Aviso superior configurable ---------- */
+.top-notice:not(.is-visible) { display: none; }
 .top-notice {
   position: fixed; inset: 0 0 auto 0; z-index: calc(var(--z-header) + 2);
   min-height: 0; background: var(--brand-blue); color: #fff;

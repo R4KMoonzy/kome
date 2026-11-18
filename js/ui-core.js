@@ -66,7 +66,8 @@
       }
     });
     qsa('[data-app-slogan]').forEach(function (el) { el.textContent = cfg.slogan || ''; });
-    qsa('[data-app-notice]').forEach(function (el) { el.innerHTML = esc(cfg.topNotice || ''); });
+    var showNotice = !!(cfg.noticeEnabled && cfg.topNotice && String(cfg.topNotice).trim());
+    qsa('[data-app-notice]').forEach(function (el) { el.innerHTML = showNotice ? esc(cfg.topNotice) : ''; });
     document.documentElement.style.setProperty('--brand-coral', cfg.primaryColor || '#FF2E00');
 
     /* Logo subido desde admin, con respaldo al marcador SVG original */
@@ -90,10 +91,9 @@
     link.href = favicon;
 
     var notice = qs('#top-notice');
-    var show = !!(cfg.noticeEnabled && cfg.topNotice && cfg.topNotice.trim());
     if (notice) {
-      notice.classList.toggle('is-visible', show);
-      document.body.classList.toggle('has-notice', show);
+      notice.classList.toggle('is-visible', showNotice);
+      document.body.classList.toggle('has-notice', showNotice);
     }
   }
 
