@@ -80,7 +80,8 @@
     facadeInput.addEventListener('change', async function () {
       if (!this.files[0]) return;
       try {
-        facadeData = await D.compressImage(this.files[0], 1100, .76);
+        var compressed = await D.compressImage(this.files[0], 1100, .76);
+        facadeData = await window.StorageService.upload(compressed, { folder: 'business' });
         document.getElementById('reg-fachada-preview').innerHTML = '<img src="' + facadeData + '" alt="Fachada o logo">';
       } catch (e) { UI.toast(e.message, 'error'); }
     });

@@ -57,7 +57,8 @@
     document.getElementById('cuenta-foto-input').addEventListener('change', async function () {
       if (!this.files[0]) return;
       try {
-        var photo = await D.compressImage(this.files[0], 400, .78);
+        var compressed = await D.compressImage(this.files[0], 400, .78);
+        var photo = await window.StorageService.upload(compressed, { folder: 'avatars' });
         await D.updateProfile({ photo: photo });
         UI.setSession(await D.getSession());
         document.getElementById('cuenta-avatar').innerHTML = '<img src="' + photo + '" alt="">';

@@ -27,6 +27,20 @@
 
     async function renderPanel() {
       var cfg = await D.getConfig();
+
+      /* Migración única: si el logo antiguo sigue como base64 en Firestore,
+         lo sube a Appwrite y deja solo una URL corta en la configuración. */
+      if (window.StorageService && window.StorageService.isDataUrl(cfg.logoUrl)) {
+        try {
+          var migrated = await window.StorageService.upload(cfg.logoUrl, { folder: 'brand' });
+          if (window.StorageService.isRemote(migrated)) {
+            cfg = await D.saveConfig({ logoUrl: migrated });
+            UI.applyBrand(cfg);
+            UI.toast('Logo migrado a Appwrite Storage', 'success');
+          }
+        } catch (e) { /* se reintentará en el próximo acceso */ }
+      }
+
       var stats = await D.getStats();
       var messages = await D.getMessages();
       var pendingMessages = messages.filter(function (m) { return m.estado === 'pendiente'; }).length;
@@ -137,9 +151,12 @@
         var file = this.files && this.files[0];
         if (!file) return;
         try {
-          logoData = await D.compressImage(file, 512, .85);
+          var compressed = await D.compressImage(file, 512, .85);
+          logoData = await window.StorageService.upload(compressed, { folder: 'brand' });
           renderLogoPreview();
-          UI.toast('Logo cargado. Guarda los cambios para aplicarlo.', 'info');
+          UI.toast(window.StorageService.isRemote(logoData)
+            ? 'Logo subido. Guarda los cambios para aplicarlo.'
+            : 'Logo cargado. Guarda los cambios para aplicarlo.', 'info');
         } catch (e) { UI.toast(e.message || 'No se pudo leer la imagen.', 'error'); }
       });
       document.getElementById('cfg-logo-clear').addEventListener('click', function () {

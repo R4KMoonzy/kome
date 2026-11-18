@@ -512,13 +512,9 @@
 
   /* ---------------- Arranque del shell ---------------- */
   async function init() {
-    config = await D.getConfig();
-    if (global.AuthService) {
-      var authState = await global.AuthService.init();
-      session = authState.session || await D.getSession();
-    } else {
-      session = await D.getSession();
-    }
+    /* El shell se monta ANTES de cualquier await: header, menú, botones y
+       footer aparecen de inmediato con la config por defecto. La config real
+       de Firestore y la sesión se resuelven en paralelo más abajo. */
     applyTheme(currentTheme());
 
     var mount = function (id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; };
@@ -537,6 +533,21 @@
     applyBrand(config);
     markActiveNav();
     refreshZoneLabels();
+
+    /* Red en paralelo: antes eran dos esperas consecutivas (~460ms + ~250ms). */
+    var configTask = D.getConfig().then(function (real) {
+      config = real || config;
+      applyBrand(config);
+      return config;
+    }).catch(function () { return config; });
+
+    var authTask = (global.AuthService
+      ? global.AuthService.init().then(function (state) { return state && state.session; })
+      : Promise.resolve(null)).then(function (authSession) {
+        return authSession || D.getSession();
+      }).then(function (s) { session = s || null; return session; });
+
+    renderSession();
 
     if (!global.localStorage.getItem(D.KEYS.cookies)) {
       var cb = qs('#cookie-bar'); if (cb) cb.classList.add('is-visible');
@@ -647,6 +658,10 @@
       });
       syncFavorites();
     });
+
+    /* Solo aquí esperamos a la red: el shell y los eventos ya están listos. */
+    await Promise.all([configTask, authTask]);
+
     D.getActivePromotions().then(function (list) {
       var c = qs('#promo-count'); if (c) c.textContent = list.length;
     });

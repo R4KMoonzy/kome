@@ -183,7 +183,8 @@
     q('#ml-photo', container).addEventListener('change', async function () {
       if (!this.files[0]) return;
       try {
-        photoData = await D.compressImage(this.files[0], 900, .74);
+        var compressed = await D.compressImage(this.files[0], 900, .74);
+        photoData = await window.StorageService.upload(compressed, { folder: 'menu' });
         q('#ml-photo-preview', container).innerHTML = '<img src="' + photoData + '" alt="Vista previa">';
       } catch (e) { UI.toast(e.message, 'error'); }
     });
@@ -344,7 +345,8 @@
       var idx = parseInt(el.getAttribute('data-card-image'), 10);
       if (isNaN(idx) || !el.files[0]) return;
       try {
-        var data = await D.compressImage(el.files[0], 700, .72);
+        var compressed = await D.compressImage(el.files[0], 700, .72);
+        var data = await window.StorageService.upload(compressed, { folder: 'menu' });
         items[idx].imagen = data;
         el.closest('.menu-item-card__photo').querySelector('img') ||
           el.closest('.menu-item-card__photo').insertAdjacentHTML('afterbegin', '<img src="' + data + '" alt="">');
