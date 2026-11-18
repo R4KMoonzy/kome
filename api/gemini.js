@@ -31,17 +31,28 @@ module.exports = async function handler(req, res) {
     var url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
       model + ':generateContent?key=' + encodeURIComponent(process.env.GEMINI_API_KEY);
 
-    var response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: parts }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.1
-        }
-      })
-    });
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, 8000);
+
+    var response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [{ parts: parts }],
+          generationConfig: { responseMimeType: 'application/json' }
+        })
+      });
+    } catch (err) {
+      if (err && err.name === 'AbortError') {
+        return res.status(504).json({ error: 'Gemini tardó demasiado en responder' });
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     var json = await response.json();
     if (!response.ok) {
