@@ -8,6 +8,8 @@
 
   UI.ready.then(function () {
     if (!UI.requireAuth('registrar-negocio.html' + window.location.search)) return;
+    /* Los botones internas del menú nunca deben enviar el formulario. */
+    document.getElementById('reg-form').addEventListener('submit', function (e) { e.preventDefault(); });
     var step = 1;
     var loader = null;
     var facadeData = '';
@@ -180,10 +182,16 @@
         fueraDeCobertura: !D.isCoveredZone(f.zona.value, UI.getConfig()),
         estado: 'pendiente'
       };
-      this.disabled = true;
-      await D.saveRequest(req);
-      UI.toast('Solicitud enviada. Queda pendiente de revisión.', 'success');
-      window.setTimeout(function () { window.location.href = 'index.html'; }, 1400);
+      var btn = this;
+      btn.disabled = true;
+      try {
+        await D.saveRequest(req);
+        UI.toast('Solicitud enviada. Queda pendiente de revisión.', 'success');
+        window.setTimeout(function () { window.location.href = 'index.html'; }, 1400);
+      } catch (err) {
+        btn.disabled = false;
+        UI.toast('No se pudo enviar la solicitud: ' + ((err && err.message) || 'inténtalo de nuevo.'), 'error');
+      }
     });
 
     renderSteps();

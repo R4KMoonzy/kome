@@ -209,7 +209,7 @@
 
     return run(0).then(function (items) {
       if (onProgress) onProgress('Procesando tarjetas detectadas…', 88);
-      return items.filter(function (it) { return it && it.nombre && it.precio; });
+      return items.filter(function (it) { return it && it.nombre; });
     });
   }
 
@@ -217,6 +217,7 @@
   global.AppAIMenuScanner = {
     scanMenuImageWithAI: scanMenuImageWithAI,
     parseMenuText: parseMenuText,
+    parsePrice: parsePrice,
     isGeminiReady: function () { return !!AppAIConfig.geminiProxy; }
   };
 })(window);

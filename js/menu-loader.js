@@ -14,6 +14,17 @@
   function qa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
   function newId() { return D.uid(); }
 
+  function normalizePrice(value) {
+    var raw = String(value == null ? '' : value).trim();
+    if (!raw) return '';
+    var scanner = global.AppAIMenuScanner;
+    if (scanner && typeof scanner.parsePrice === 'function') {
+      var parsed = scanner.parsePrice(raw);
+      if (parsed) return parsed;
+    }
+    return raw.replace(/\s/g, '').replace(',', '.').replace(/[^\d.]/g, '');
+  }
+
   var TAG_OPTIONS = ['', 'Nuevo', 'Más vendido', 'Agotado'];
   var CATEGORY_SUGGESTIONS = ['Platos Fuertes', 'Bebidas', 'Combos', 'Entradas', 'Postres', 'Pizzas', 'Rápida', 'General'];
 
@@ -40,7 +51,7 @@
           '<textarea class="textarea textarea--sm" data-field="descripcion" data-index="' + index + '" placeholder="Descripción / ingredientes">' + esc(item.descripcion || '') + '</textarea>' +
           '<select class="select select--sm" data-field="etiqueta" data-index="' + index + '">' + tagOptions(item.etiqueta || '') + '</select>' +
         '</div>' +
-        '<button class="icon-btn menu-item-card__del" data-remove="' + index + '" title="Quitar tarjeta" aria-label="Quitar">' + I.svg('trash', { size: 17 }) + '</button>' +
+        '<button type="button" class="icon-btn menu-item-card__del" data-remove="' + index + '" title="Quitar tarjeta" aria-label="Quitar">' + I.svg('trash', { size: 17 }) + '</button>' +
       '</div>' +
     '</div>';
   }
@@ -54,9 +65,9 @@
     container.innerHTML =
       '<datalist id="ml-cat-suggestions">' + CATEGORY_SUGGESTIONS.map(function (c) { return '<option value="' + esc(c) + '"></option>'; }).join('') + '</datalist>' +
       '<div class="ml-tabs" role="tablist">' +
-        '<button class="ml-tab is-active" data-tab="manual" role="tab">' + I.svg('edit', { size: 17 }) + '<span>Carga manual</span></button>' +
-        '<button class="ml-tab" data-tab="excel" role="tab">' + I.svg('file', { size: 17 }) + '<span>Excel / CSV</span></button>' +
-        '<button class="ml-tab" data-tab="ia" role="tab">' + I.svg('sparkles', { size: 17 }) + '<span>Escaneo con IA</span></button>' +
+        '<button type="button" class="ml-tab is-active" data-tab="manual" role="tab">' + I.svg('edit', { size: 17 }) + '<span>Carga manual</span></button>' +
+        '<button type="button" class="ml-tab" data-tab="excel" role="tab">' + I.svg('file', { size: 17 }) + '<span>Excel / CSV</span></button>' +
+        '<button type="button" class="ml-tab" data-tab="ia" role="tab">' + I.svg('sparkles', { size: 17 }) + '<span>Escaneo con IA</span></button>' +
       '</div>' +
 
       /* ---------- MODO 1: MANUAL ---------- */
@@ -83,8 +94,8 @@
         '</div>' +
         '<div class="field" style="margin-top:14px"><label class="field__label">Descripción de ingredientes</label>' +
           '<textarea class="textarea" id="ml-descripcion" placeholder="Ingredientes, tamaño o detalles…"></textarea></div>' +
-        '<div class="form-actions"><button class="btn btn--primary" id="ml-add-manual">' + I.svg('plus', { size: 17 }) + 'Agregar tarjeta editable</button>' +
-          '<button class="btn btn--ghost" id="ml-clear-manual">Limpiar campos</button></div>' +
+        '<div class="form-actions"><button type="button" class="btn btn--primary" id="ml-add-manual">' + I.svg('plus', { size: 17 }) + 'Agregar tarjeta editable</button>' +
+          '<button type="button" class="btn btn--ghost" id="ml-clear-manual">Limpiar campos</button></div>' +
       '</div>' +
 
       /* ---------- MODO 2: EXCEL / CSV ---------- */
@@ -96,7 +107,7 @@
             I.svg('upload', { size: 28 }) + '<strong>Arrastra tu archivo o haz clic</strong><small>.xlsx · .xls · .csv</small></div>' +
           '<div class="ml-template-card">' + I.svg('download', { size: 22 }) +
             '<strong>¿No tienes el archivo?</strong><p class="muted tiny">Descarga la plantilla con las columnas exactas: Nombre, Categoria, Precio y Descripcion.</p>' +
-            '<button class="btn btn--blue btn--sm" id="ml-template">' + I.svg('download', { size: 15 }) + 'Descargar Plantilla Excel (.xlsx)</button></div>' +
+            '<button type="button" class="btn btn--blue btn--sm" id="ml-template">' + I.svg('download', { size: 15 }) + 'Descargar Plantilla Excel (.xlsx)</button></div>' +
         '</div>' +
         '<div class="ml-progress" id="ml-excel-progress"><div class="progress"><div class="progress__bar" id="ml-excel-bar"></div></div><span class="tiny muted" id="ml-excel-status"></span></div>' +
       '</div>' +
@@ -117,7 +128,7 @@
           '<div class="ml-template-card">' + I.svg('camera', { size: 22 }) +
             '<strong>Consejos para mejor lectura</strong>' +
             '<p class="muted tiny">Evita reflejos, mantén el menú completo dentro del cuadro y usa buena luz. Revisa siempre los precios detectados antes de publicar.</p>' +
-            '<button class="btn btn--blue btn--sm" id="ml-scan-start">' + I.svg('sparkles', { size: 15 }) + 'Escanear menú</button>' +
+            '<button type="button" class="btn btn--blue btn--sm" id="ml-scan-start">' + I.svg('sparkles', { size: 15 }) + 'Escanear menú</button>' +
             '<div class="ml-gemini-note tiny muted" id="ml-gemini-note"></div>' +
           '</div>' +
         '</div>' +
@@ -125,13 +136,13 @@
         '<div class="ml-manual-text hidden" id="ml-manual-text">' +
           '<label class="field__label">El escáner automático no está disponible. Pega aquí el texto leído del menú:</label>' +
           '<textarea class="textarea" id="ml-ai-text" placeholder="Ej.&#10;Pollo asado .......... ₡4500&#10;Limonada natural .... ₡1200"></textarea>' +
-          '<button class="btn btn--primary btn--sm" id="ml-ai-parse" style="margin-top:10px">' + I.svg('sparkles', { size: 15 }) + 'Generar tarjetas desde el texto</button>' +
+          '<button type="button" class="btn btn--primary btn--sm" id="ml-ai-parse" style="margin-top:10px">' + I.svg('sparkles', { size: 15 }) + 'Generar tarjetas desde el texto</button>' +
         '</div>' +
       '</div>' +
 
       '<div class="ml-results">' +
         '<div class="ml-results__head"><h4>Tarjetas editables <span class="ml-count" id="ml-count">0</span></h4>' +
-          '<button class="btn btn--ghost btn--sm" id="ml-remove-all" ' + (items.length ? '' : 'disabled') + '>' + I.svg('trash', { size: 14 }) + 'Borrar todas</button></div>' +
+          '<button type="button" class="btn btn--ghost btn--sm" id="ml-remove-all" ' + (items.length ? '' : 'disabled') + '>' + I.svg('trash', { size: 14 }) + 'Borrar todas</button></div>' +
         '<div class="ml-cards" id="ml-cards"></div>' +
         '<div class="ml-cards-empty" id="ml-cards-empty">' + I.svg('box', { size: 32, style: 'color:var(--text-3);margin:0 auto 10px' }) +
           '<p class="muted">Aún no hay productos. Usa cualquiera de los 3 modos para agregar el primero.</p></div>' +
@@ -155,7 +166,7 @@
           _uid: newId(),
           nombre: String(it.nombre || '').trim(),
           categoria: String(it.categoria || 'General').trim() || 'General',
-          precio: String(it.precio || '').replace(/[^\d.]/g, ''),
+          precio: normalizePrice(it.precio),
           descripcion: String(it.descripcion || '').trim(),
           etiqueta: String(it.etiqueta || '').trim(),
           imagen: it.imagen || ''
@@ -274,36 +285,32 @@
 
     /* --- IA --- */
     var scanFile = null;
+    var scanUrl = '';
+    var scanning = false;
     var scanInput = q('#ml-scan-image', container);
+    var scanButton = q('#ml-scan-start', container);
     q('#ml-gemini-note', container).textContent = global.AppAIMenuScanner.isGeminiReady()
-      ? 'Visión Gemini Flash conectada.' : 'OCR local activo. Si falla la lectura, podrás pegar el texto del menú.';
+      ? 'Visión Gemini Flash conectada. La foto se escanea automáticamente.' : 'OCR local activo. La foto se escanea automáticamente; si falla, podrás pegar el texto.';
 
-    function showScanImage(file) {
-      scanFile = file;
-      var url = URL.createObjectURL(file);
-      q('#ml-scan-img', container).src = url;
-      q('#ml-scan-placeholder', container).classList.add('hidden');
-      q('#ml-scan-view', container).classList.remove('hidden');
+    function setScanning(state) {
+      scanning = state;
+      scanButton.disabled = state;
+      scanButton.innerHTML = state
+        ? I.svg('scan', { size: 15 }) + 'Escaneando…'
+        : I.svg('sparkles', { size: 15 }) + 'Escanear menú';
     }
-    scanInput.addEventListener('change', function () { if (this.files[0]) showScanImage(this.files[0]); });
-    var scanDrop = q('#ml-scan-drop', container);
-    scanDrop.addEventListener('click', function (e) {
-      if (e.target.closest('#ml-scan-start')) return;
-      if (!scanFile) scanInput.click();
-    });
-    ['dragenter', 'dragover'].forEach(function (ev) { scanDrop.addEventListener(ev, function (e) { e.preventDefault(); scanDrop.classList.add('is-drag'); }); });
-    ['dragleave', 'drop'].forEach(function (ev) { scanDrop.addEventListener(ev, function (e) { e.preventDefault(); scanDrop.classList.remove('is-drag'); }); });
-    scanDrop.addEventListener('drop', function (e) { if (e.dataTransfer.files[0]) showScanImage(e.dataTransfer.files[0]); });
 
-    q('#ml-scan-start', container).addEventListener('click', async function () {
-      if (!scanFile) { UI.toast('Primero sube una foto del menú.', 'error'); return; }
+    async function runScan(file) {
+      if (!file) { UI.toast('Primero sube una foto del menú.', 'error'); return; }
+      if (scanning) return;
+      setScanning(true);
       var overlay = q('#ml-scan-overlay', container);
       overlay.classList.remove('hidden');
       q('#ml-manual-text', container).classList.add('hidden');
-      var bar = q('#ml-ai-bar', container);
-      bar.style.width = '0%';
+      q('#ml-ai-bar', container).style.width = '0%';
+      q('#ml-scan-label', container).textContent = 'Escaneando menú…';
       try {
-        var items = await global.AppAIMenuScanner.scanMenuImageWithAI(scanFile, {
+        var items = await global.AppAIMenuScanner.scanMenuImageWithAI(file, {
           onProgress: function (msg, pct) { progress('ml-ai-progress', 'ml-ai-bar', pct, msg); q('#ml-scan-label', container).textContent = msg; }
         });
         progress('ml-ai-progress', 'ml-ai-bar', 100, items.length + ' productos detectados.');
@@ -320,8 +327,33 @@
         UI.toast(err.message, 'error');
       } finally {
         overlay.classList.add('hidden');
+        setScanning(false);
       }
+    }
+
+    function showScanImage(file, auto) {
+      if (!file) return;
+      scanFile = file;
+      if (scanUrl) URL.revokeObjectURL(scanUrl);
+      scanUrl = URL.createObjectURL(file);
+      q('#ml-scan-img', container).src = scanUrl;
+      q('#ml-scan-placeholder', container).classList.add('hidden');
+      q('#ml-scan-view', container).classList.remove('hidden');
+      if (auto !== false) runScan(file);
+    }
+
+    scanInput.addEventListener('change', function () {
+      if (this.files[0]) showScanImage(this.files[0], true);
+      this.value = '';
     });
+    var scanDrop = q('#ml-scan-drop', container);
+    scanDrop.addEventListener('click', function () {
+      if (!scanning) scanInput.click();
+    });
+    ['dragenter', 'dragover'].forEach(function (ev) { scanDrop.addEventListener(ev, function (e) { e.preventDefault(); scanDrop.classList.add('is-drag'); }); });
+    ['dragleave', 'drop'].forEach(function (ev) { scanDrop.addEventListener(ev, function (e) { e.preventDefault(); scanDrop.classList.remove('is-drag'); }); });
+    scanDrop.addEventListener('drop', function (e) { if (e.dataTransfer.files[0]) showScanImage(e.dataTransfer.files[0], true); });
+    scanButton.addEventListener('click', function () { runScan(scanFile); });
 
     q('#ml-ai-parse', container).addEventListener('click', function () {
       var text = q('#ml-ai-text', container).value;
@@ -366,7 +398,7 @@
       UI.openModal(UI.modalHead('¿Borrar todas las tarjetas?') +
         '<p class="muted">Se eliminarán ' + items.length + ' productos de esta lista temporal. Esta acción no afecta lo que ya publicaste.</p>' +
         '<div class="modal__foot"><button class="btn btn--ghost btn--block" data-modal-close>Cancelar</button>' +
-        '<button class="btn btn--danger btn--block" id="ml-confirm-clear">Borrar todo</button></div>', function (wrap, close) {
+        '<button type="button" class="btn btn--danger btn--block" id="ml-confirm-clear">Borrar todo</button></div>', function (wrap, close) {
           q('#ml-confirm-clear', wrap).addEventListener('click', function () { items = []; renderCards(); close(); });
         });
     });
@@ -375,7 +407,7 @@
 
     return {
       getItems: function () {
-        return items.filter(function (it) { return it.nombre && it.precio; }).map(function (it) {
+        return items.filter(function (it) { return it && it.nombre; }).map(function (it) {
           return {
             id: it._uid || it.id || newId(),
             nombre: it.nombre, categoria: it.categoria || 'General',
