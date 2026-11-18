@@ -34,6 +34,8 @@
       requests: 'business_requests',
       promotions: 'promotions',
       reviews: 'reviews',
+      messages: 'messages',
+      favorites: 'favorites',
       users: 'users',
       config: 'app_config'
     },

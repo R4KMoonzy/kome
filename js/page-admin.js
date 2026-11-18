@@ -3,7 +3,6 @@
   'use strict';
   var D = window.DataService, I = window.AppIcons, UI = window.UI;
   var esc = D.escapeHtml;
-  var ADMIN_ACCESS_CODE = 'Rack';
 
   UI.ready.then(async function () {
     var root = document.getElementById('admin-root');
@@ -12,25 +11,18 @@
     renderPanel();
 
     function renderGate() {
+      var session = window.AuthService && AuthService.current();
       root.innerHTML = '<div class="admin-gate"><div class="card admin-gate__card">' +
         I.svg('lock', { size: 46, strokeWidth: 1.6 }) +
         '<h1 style="font-size:1.35rem;margin-bottom:6px">Acceso administrativo</h1>' +
-        '<p class="muted tiny" style="margin-bottom:20px">Ingresa el código único de super-administrador para moderar el directorio y configurar la plataforma.</p>' +
-        '<div class="field"><label class="field__label">Código de acceso</label>' +
-        '<input class="input" id="admin-code" type="password" placeholder="Código único" autocomplete="off"></div>' +
-        '<button class="btn btn--primary btn--block" id="admin-unlock" style="margin-top:14px">' + I.svg('key', { size: 16 }) + 'Desbloquear panel</button>' +
-        '<p class="tiny muted" style="margin-top:14px">El acceso se guarda solo en este navegador y puede revocarse desde «Cerrar sesión».</p>' +
+        '<p class="muted tiny" style="margin-bottom:20px">' +
+          (session
+            ? 'Tu cuenta (' + esc(session.email) + ') no tiene permisos de administrador. El rol se configura en Firestore → users → ' + esc(session.uid) + ' → role: admin.'
+            : 'Ingresa con una cuenta que tenga el rol de administrador para moderar el directorio y configurar la plataforma.') +
+        '</p>' +
+        '<a class="btn btn--primary btn--block" href="login.html?next=admin.html">' +
+          (session ? 'Cambiar de cuenta' : 'Ingresar') + '</a>' +
         '</div></div>';
-      var input = document.getElementById('admin-code');
-      function attempt() {
-        if (input.value.trim().toUpperCase() === ADMIN_ACCESS_CODE.toUpperCase()) {
-          D.setAdminUnlocked(true).then(function () { UI.toast('Acceso concedido', 'success'); renderPanel(); });
-        } else {
-          UI.toast('Código incorrecto', 'error'); input.value = ''; input.focus();
-        }
-      }
-      document.getElementById('admin-unlock').addEventListener('click', attempt);
-      input.addEventListener('keydown', function (e) { if (e.key === 'Enter') attempt(); });
     }
 
     async function renderPanel() {
@@ -41,7 +33,7 @@
       root.innerHTML =
         '<div class="panel-head"><div><h1 style="font-size:1.4rem;font-weight:900">Panel Super-Admin</h1>' +
           '<p class="muted tiny">Configuración global, moderación y edición total</p></div>' +
-          '<button class="btn btn--ghost btn--sm" id="admin-lock">' + I.svg('lock', { size: 15 }) + 'Bloquear panel</button></div>' +
+          '<button class="btn btn--ghost btn--sm" id="admin-lock">' + I.svg('lock', { size: 15 }) + 'Cerrar sesión</button></div>' +
         '<div class="stat-grid">' +
           '<div class="card stat-box"><strong>' + stats.businesses + '</strong><span>Locales aprobados</span></div>' +
           '<div class="card stat-box"><strong>' + stats.requests + '</strong><span>Solicitudes pendientes</span></div>' +
@@ -122,7 +114,11 @@
         });
       });
       document.getElementById('admin-lock').addEventListener('click', function () {
-        D.setAdminUnlocked(false).then(renderGate);
+        if (window.AuthService) {
+          AuthService.signOut().then(function () { window.location.href = 'index.html'; });
+        } else {
+          window.location.href = 'index.html';
+        }
       });
 
       var noticeOn = !!cfg.noticeEnabled;

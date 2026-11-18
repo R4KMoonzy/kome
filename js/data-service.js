@@ -1,7 +1,7 @@
 /* ============================================================
    data-service.js — Capa centralizada de datos (async/await)
-   Backend actual: localStorage. Todas las colecciones inician
-   VACÍAS. Prepared for Firestore / Appwrite via flags.
+   Backend principal: Firestore. localStorage se usa solo como
+   respaldo si Firestore no está disponible. Sin datos de ejemplo.
    ============================================================ */
 (function (global) {
   'use strict';
@@ -123,33 +123,63 @@
 
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms || 40); }); }
 
+  function fs() {
+    var S = global.FirestoreService;
+    if (!S) return Promise.resolve(false);
+    if (S.ready()) return Promise.resolve(true);
+    return S.init().then(function () { return S.ready(); });
+  }
+
+  function sortByCreated(list) {
+    return list.slice().sort(function (a, b) {
+      return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+    });
+  }
+
   /* ---------------- Config white-label ---------------- */
   async function getConfig() {
+    if (await fs()) {
+      var doc = await global.FirestoreService.get('app_config', 'public');
+      return Object.assign({}, DEFAULT_CONFIG, doc || {});
+    }
     var saved = read(KEYS.config, {});
     return Object.assign({}, DEFAULT_CONFIG, saved || {});
   }
   async function saveConfig(patch) {
     var next = Object.assign(await getConfig(), patch || {}, { updatedAt: new Date().toISOString() });
-    write(KEYS.config, next);
+    if (await fs()) {
+      await global.FirestoreService.set('app_config', 'public', next);
+    } else {
+      write(KEYS.config, next);
+    }
     return next;
   }
 
   /* ---------------- Mensajes de soporte ---------------- */
   async function getMessages() {
+    if (await fs()) return sortByCreated(await global.FirestoreService.all('messages'));
     var list = read(KEYS.messages, []);
     return Array.isArray(list) ? list : [];
   }
   async function addMessage(msg) {
-    var list = await getMessages();
     var item = Object.assign({
       id: uid(), nombre: '', email: '', asunto: '', mensaje: '',
       estado: 'pendiente', createdAt: new Date().toISOString(), updatedAt: null
     }, msg || {});
-    list.unshift(item);
-    write(KEYS.messages, list);
+    if (await fs()) {
+      await global.FirestoreService.set('messages', item.id, item);
+    } else {
+      var list = await getMessages();
+      list.unshift(item);
+      write(KEYS.messages, list);
+    }
     return item;
   }
   async function updateMessage(id, patch) {
+    if (await fs()) {
+      return global.FirestoreService.update('messages', id,
+        Object.assign({}, patch || {}, { updatedAt: new Date().toISOString() }));
+    }
     var list = await getMessages();
     var idx = -1;
     for (var i = 0; i < list.length; i++) { if (list[i].id === id) { idx = i; break; } }
@@ -159,6 +189,9 @@
     return list[idx];
   }
   async function deleteMessage(id) {
+    if (await fs()) {
+      return global.FirestoreService.remove('messages', id);
+    }
     var list = (await getMessages()).filter(function (m) { return m.id !== id; });
     write(KEYS.messages, list);
     return true;
@@ -166,6 +199,7 @@
 
   /* ---------------- Negocios ---------------- */
   async function getBusinesses() {
+    if (await fs()) return global.FirestoreService.all('businesses');
     var list = read(KEYS.businesses, []);
     return Array.isArray(list) ? list : [];
   }
@@ -175,17 +209,21 @@
     return list.find(function (b) { return b.id === id || b.slug === id; }) || null;
   }
   async function saveBusiness(business) {
-    var list = await getBusinesses();
     var copy = Object.assign({}, business);
     if (!copy.id) copy.id = uid();
     copy.updatedAt = new Date().toISOString();
     if (!copy.createdAt) copy.createdAt = copy.updatedAt;
+    if (await fs()) {
+      return global.FirestoreService.set('businesses', copy.id, copy);
+    }
+    var list = await getBusinesses();
     var idx = list.findIndex(function (b) { return b.id === copy.id; });
     if (idx === -1) list.push(copy); else list[idx] = copy;
     write(KEYS.businesses, list);
     return copy;
   }
   async function deleteBusiness(id) {
+    if (await fs()) return global.FirestoreService.remove('businesses', id);
     var list = (await getBusinesses()).filter(function (b) { return b.id !== id; });
     write(KEYS.businesses, list);
     return true;
@@ -251,21 +289,26 @@
 
   /* ---------------- Solicitudes (anti-trolls) ---------------- */
   async function getRequests() {
+    if (await fs()) return sortByCreated(await global.FirestoreService.all('business_requests'));
     var list = read(KEYS.requests, []);
     return Array.isArray(list) ? list : [];
   }
   async function saveRequest(request) {
-    var list = await getRequests();
     var copy = Object.assign({}, request);
     if (!copy.id) copy.id = uid();
     copy.estado = copy.estado || 'pendiente';
     copy.createdAt = copy.createdAt || new Date().toISOString();
+    if (await fs()) {
+      return global.FirestoreService.set('business_requests', copy.id, copy);
+    }
+    var list = await getRequests();
     var idx = list.findIndex(function (r) { return r.id === copy.id; });
     if (idx === -1) list.push(copy); else list[idx] = copy;
     write(KEYS.requests, list);
     return copy;
   }
   async function deleteRequest(id) {
+    if (await fs()) return global.FirestoreService.remove('business_requests', id);
     write(KEYS.requests, (await getRequests()).filter(function (r) { return r.id !== id; }));
     return true;
   }
@@ -291,6 +334,7 @@
 
   /* ---------------- Promociones ---------------- */
   async function getPromotions() {
+    if (await fs()) return sortByCreated(await global.FirestoreService.all('promotions'));
     var list = read(KEYS.promotions, []);
     return Array.isArray(list) ? list : [];
   }
@@ -298,17 +342,21 @@
     return (await getPromotions()).find(function (p) { return p.id === id; }) || null;
   }
   async function savePromotion(promo) {
-    var list = await getPromotions();
     var copy = Object.assign({}, promo);
     if (!copy.id) copy.id = uid();
     copy.createdAt = copy.createdAt || new Date().toISOString();
     copy.activa = copy.activa !== false;
+    if (await fs()) {
+      return global.FirestoreService.set('promotions', copy.id, copy);
+    }
+    var list = await getPromotions();
     var idx = list.findIndex(function (p) { return p.id === copy.id; });
     if (idx === -1) list.push(copy); else list[idx] = copy;
     write(KEYS.promotions, list);
     return copy;
   }
   async function deletePromotion(id) {
+    if (await fs()) return global.FirestoreService.remove('promotions', id);
     write(KEYS.promotions, (await getPromotions()).filter(function (p) { return p.id !== id; }));
     return true;
   }
@@ -329,6 +377,12 @@
     return s && s.uid ? KEYS.favorites + ':' + s.uid : null;
   }
   async function getFavorites() {
+    var session = await getSession();
+    if (!session || !session.uid) return [];
+    if (await fs()) {
+      var user = await global.FirestoreService.get('users', session.uid);
+      return (user && Array.isArray(user.favorites)) ? user.favorites : [];
+    }
     var key = favoritesKey();
     if (!key) return [];
     var list = read(key, null);
@@ -342,12 +396,23 @@
   }
   async function isFavorite(id) { return (await getFavorites()).indexOf(id) !== -1; }
   async function toggleFavorite(id) {
+    var session = await getSession();
+    if (!session || !session.uid) return false;
+    if (await fs()) {
+      var list = await getFavorites();
+      var add = list.indexOf(id) === -1;
+      var S = global.FirestoreService;
+      if (add) await S.arrayAdd('users', session.uid, 'favorites', id);
+      else await S.arrayRemove('users', session.uid, 'favorites', id);
+      emit();
+      return add;
+    }
     var key = favoritesKey();
     if (!key) return false;
-    var list = await getFavorites();
-    var idx = list.indexOf(id);
-    if (idx === -1) list.push(id); else list.splice(idx, 1);
-    write(key, list);
+    var local = await getFavorites();
+    var idx = local.indexOf(id);
+    if (idx === -1) local.push(id); else local.splice(idx, 1);
+    write(key, local);
     return idx === -1;
   }
 
@@ -375,15 +440,29 @@
 
   /* ---------------- Reseñas ---------------- */
   async function getReviews(businessId) {
-    var list = read(KEYS.reviews, []);
-    return (Array.isArray(list) ? list : []).filter(function (r) { return !businessId || r.businessId === businessId; });
+    var list;
+    if (await fs()) list = await global.FirestoreService.all('reviews');
+    else {
+      var stored = read(KEYS.reviews, []);
+      list = Array.isArray(stored) ? stored : [];
+    }
+    return list.filter(function (r) { return !businessId || r.businessId === businessId; });
   }
   async function addReview(review) {
-    var list = read(KEYS.reviews, []);
-    if (!Array.isArray(list)) list = [];
-    var copy = Object.assign({}, review, { id: uid(), createdAt: new Date().toISOString() });
-    list.push(copy);
-    write(KEYS.reviews, list);
+    var session = (global.AuthService && global.AuthService.current()) || await getSession();
+    var copy = Object.assign({}, review, {
+      id: uid(),
+      userId: (session && session.uid) || null,
+      createdAt: new Date().toISOString()
+    });
+    if (await fs()) {
+      await global.FirestoreService.set('reviews', copy.id, copy);
+    } else {
+      var list = read(KEYS.reviews, []);
+      if (!Array.isArray(list)) list = [];
+      list.push(copy);
+      write(KEYS.reviews, list);
+    }
     var b = await getBusiness(review.businessId);
     if (b) {
       await saveBusiness(Object.assign({}, b, {
@@ -405,11 +484,17 @@
     };
   }
   async function isAdminUnlocked() {
-    return read(KEYS.admin, { unlocked: false, at: 0 }).unlocked === true;
+    if (await fs()) {
+      var session = await getSession();
+      if (!session || !session.uid) return false;
+      return (await global.FirestoreService.roleOf(session.uid)) === 'admin';
+    }
+    /* Sin Firestore no hay acceso administrativo: el rol vive en Firestore. */
+    return false;
   }
   async function setAdminUnlocked(value) {
-    write(KEYS.admin, { unlocked: !!value, at: Date.now() });
-    return !!value;
+    /* El rol se administra en Firestore (users/{uid}.role), no en el navegador. */
+    return isAdminUnlocked();
   }
 
   /* ---------------- Utilidades públicas ---------------- */

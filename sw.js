@@ -2,22 +2,23 @@
    sw.js — Service Worker PWA (offline-first para el shell)
    La data dinámica NO se cachea: siempre se lee del storage local.
    ============================================================ */
-var CACHE = 'migl-shell-v14';
+var CACHE = 'migl-shell-v15';
 var SHELL = [
   './', './index.html', './explorar.html', './comercio.html', './promociones.html',
   './favoritos.html', './registrar-negocio.html', './mi-negocio.html', './cuenta.html', './admin.html',
   './login.html', './registro.html',
   './nosotros.html', './contacto.html', './preguntas-frecuentes.html',
   './manifest.json', './icons/icon.svg',
-  './css/variables.css?v=14', './css/global.css?v=14', './css/pages.css?v=14',
-  './js/icons.js?v=14', './js/firebase-config.js?v=14', './js/appwrite-config.js?v=14',
-  './js/ai-menu-scanner.js?v=14', './js/data-service.js?v=14', './js/auth-service.js?v=14',
-  './js/ui-core.js?v=14', './js/menu-loader.js?v=14',
-  './js/page-home.js?v=14', './js/page-explorar.js?v=14', './js/page-comercio.js?v=14', './js/page-promociones.js?v=14',
-  './js/page-favoritos.js?v=14', './js/page-cuenta.js?v=14', './js/page-registro.js?v=14',
-  './js/page-mi-negocio.js?v=14', './js/page-admin.js?v=14',
-  './js/page-login.js?v=14', './js/page-registro-usuario.js?v=14',
-  './js/page-nosotros.js?v=14', './js/page-contacto.js?v=14', './js/page-faq.js?v=14'
+  './css/variables.css?v=15', './css/global.css?v=15', './css/pages.css?v=15',
+  './js/icons.js?v=15', './js/firebase-config.js?v=15', './js/appwrite-config.js?v=15',
+  './js/firestore-service.js?v=15',
+  './js/ai-menu-scanner.js?v=15', './js/data-service.js?v=15', './js/auth-service.js?v=15',
+  './js/ui-core.js?v=15', './js/menu-loader.js?v=15',
+  './js/page-home.js?v=15', './js/page-explorar.js?v=15', './js/page-comercio.js?v=15', './js/page-promociones.js?v=15',
+  './js/page-favoritos.js?v=15', './js/page-cuenta.js?v=15', './js/page-registro.js?v=15',
+  './js/page-mi-negocio.js?v=15', './js/page-admin.js?v=15',
+  './js/page-login.js?v=15', './js/page-registro-usuario.js?v=15',
+  './js/page-nosotros.js?v=15', './js/page-contacto.js?v=15', './js/page-faq.js?v=15'
 ];
 
 self.addEventListener('install', function (e) {

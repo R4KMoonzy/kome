@@ -88,9 +88,18 @@
     if (global.UI && global.UI.setSession) global.UI.setSession(current);
   }
 
-  function applyUser(user) {
+  async function applyUser(user) {
     var session = mapUser(user);
-    if (session) D.login(session); else clearSession();
+    if (session) {
+      D.login(session);
+      if (global.FirestoreService) {
+        try {
+          var role = await global.FirestoreService.ensureUser(session);
+          session.role = role || 'usuario';
+          D.login(session);
+        } catch (e) { /* el perfil se creará al siguiente acceso */ }
+      }
+    } else clearSession();
     emit(session);
     return session;
   }
@@ -167,8 +176,8 @@
       var resolveFirst;
       var first = new Promise(function (resolve) { resolveFirst = resolve; });
       var gotFirst = false;
-      ctx.m.onAuthStateChanged(ctx.auth, function (user) {
-        var s = applyUser(user);
+      ctx.m.onAuthStateChanged(ctx.auth, async function (user) {
+        var s = await applyUser(user);
         if (!gotFirst) { gotFirst = true; resolveFirst(s); }
       });
       var session = await first;
@@ -189,7 +198,7 @@
     try {
       var ctx = await ensureFirebase();
       var cred = await ctx.m.signInWithEmailAndPassword(ctx.auth, email, password);
-      return applyUser(cred.user);
+      return await applyUser(cred.user);
     } catch (e) { throw new Error(friendlyError(e)); }
   }
 
@@ -205,7 +214,7 @@
       var ctx = await ensureFirebase();
       var cred = await ctx.m.createUserWithEmailAndPassword(ctx.auth, email, password);
       await ctx.m.updateProfile(cred.user, { displayName: name });
-      return applyUser(ctx.auth.currentUser || cred.user);
+      return await applyUser(ctx.auth.currentUser || cred.user);
     } catch (e) { throw new Error(friendlyError(e)); }
   }
 
