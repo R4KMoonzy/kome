@@ -115,6 +115,12 @@
     return value;
   }
 
+  /* Caché silenciosa: no dispara mgl:data-changed (evita lecturas extra al arrancar). */
+  function writeCache(key, value) {
+    try { global.localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* quota */ }
+    return value;
+  }
+
   function emit() {
     var ev;
     try { ev = new Event('mgl:data-changed'); } catch (e) { ev = document.createEvent('Event'); ev.initEvent('mgl:data-changed', true, true); }
@@ -140,7 +146,10 @@
   async function getConfig() {
     if (await fs()) {
       var doc = await global.FirestoreService.get('app_config', 'public');
-      return Object.assign({}, DEFAULT_CONFIG, doc || {});
+      var merged = Object.assign({}, DEFAULT_CONFIG, doc || {});
+      /* Se guarda para que el próximo arranque pinte la marca correcta al instante. */
+      writeCache(KEYS.config, merged);
+      return merged;
     }
     var saved = read(KEYS.config, {});
     return Object.assign({}, DEFAULT_CONFIG, saved || {});
@@ -149,6 +158,7 @@
     var next = Object.assign(await getConfig(), patch || {}, { updatedAt: new Date().toISOString() });
     if (await fs()) {
       await global.FirestoreService.set('app_config', 'public', next);
+      writeCache(KEYS.config, next);
     } else {
       write(KEYS.config, next);
     }

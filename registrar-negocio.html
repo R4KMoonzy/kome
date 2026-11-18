@@ -6,11 +6,26 @@
   <meta name="theme-color" content="#FF5500">
   <title>Registra tu negocio — MiGuía Local</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="css/variables.css?v=19">
-  <link rel="stylesheet" href="css/global.css?v=19">
-  <link rel="stylesheet" href="css/pages.css?v=19">
+  <link rel="stylesheet" href="css/variables.css?v=22">
+  <link rel="stylesheet" href="css/global.css?v=22">
+  <link rel="stylesheet" href="css/pages.css?v=22">
 </head>
 <body data-page="registro">
+  <div class="page-loader" id="page-loader" aria-hidden="true">
+    <div class="page-loader__halo"></div>
+    <div class="page-loader__brand">
+      <span class="page-loader__logo" id="page-loader-logo"></span>
+      <span class="page-loader__name" id="page-loader-name"></span>
+      <span class="page-loader__dots"><i></i><i></i><i></i></span>
+    </div>
+    <div class="page-loader__waves">
+      <svg viewBox="0 0 1440 320" preserveAspectRatio="none" aria-hidden="true">
+        <path class="wave wave--back" d="M0,120 C240,200 480,40 720,120 C960,200 1200,40 1440,120 L1440,320 L0,320 Z"/>
+        <path class="wave wave--mid" d="M0,20 C240,100 480,-60 720,20 C960,100 1200,-60 1440,20 L1440,320 L0,320 Z"/>
+        <path class="wave wave--front" d="M0,70 C240,-10 480,150 720,70 C960,-10 1200,150 1440,70 L1440,320 L0,320 Z"/>
+      </svg>
+    </div>
+  </div>
   <div id="top-notice" class="top-notice"></div>
   <div id="app-header"></div>
   <div id="app-drawer"></div>
@@ -108,16 +123,16 @@
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
-  <script src="js/icons.js?v=19"></script>
-  <script src="js/firebase-config.js?v=19"></script>
-  <script src="js/appwrite-config.js?v=19"></script>
-  <script src="js/storage-service.js?v=19"></script>
-  <script src="js/firestore-service.js?v=19"></script>
-  <script src="js/ai-menu-scanner.js?v=19"></script>
-  <script src="js/data-service.js?v=19"></script>
-  <script src="js/auth-service.js?v=19"></script>
-  <script src="js/ui-core.js?v=19"></script>
-  <script src="js/menu-loader.js?v=19"></script>
-  <script src="js/page-registro.js?v=19"></script>
+  <script src="js/icons.js?v=22"></script>
+  <script src="js/firebase-config.js?v=22"></script>
+  <script src="js/appwrite-config.js?v=22"></script>
+  <script src="js/storage-service.js?v=22"></script>
+  <script src="js/firestore-service.js?v=22"></script>
+  <script src="js/ai-menu-scanner.js?v=22"></script>
+  <script src="js/data-service.js?v=22"></script>
+  <script src="js/auth-service.js?v=22"></script>
+  <script src="js/ui-core.js?v=22"></script>
+  <script src="js/menu-loader.js?v=22"></script>
+  <script src="js/page-registro.js?v=22"></script>
 </body>
 </html>

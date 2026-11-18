@@ -9,11 +9,85 @@
   var D = global.DataService;
   var I = global.AppIcons;
   var esc = D.escapeHtml;
+
+  /* La marca correcta se toma de la caché local ANTES de cualquier petición.
+     Así el primer paint ya muestra el nombre y el logo reales. */
   var config = D.DEFAULT_CONFIG;
+  var hasCachedBrand = false;
+  try {
+    var cachedCfg = JSON.parse(global.localStorage.getItem(D.KEYS.config) || 'null');
+    if (cachedCfg && cachedCfg.appName) {
+      config = Object.assign({}, D.DEFAULT_CONFIG, cachedCfg);
+      hasCachedBrand = true;
+      document.title = config.appName + ' — ' + config.slogan;
+    }
+  } catch (e) { /* caché no disponible */ }
+
   var session = null;
 
   function qs(sel, root) { return (root || document).querySelector(sel); }
   function qsa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function markBrandPending() {
+    qsa('.brand').forEach(function (brand) {
+      if (brand.querySelector('[data-brand-mark]')) brand.classList.add('is-pending');
+    });
+  }
+
+  function revealBrand() {
+    /* Cross-fade: el placeholder se apaga mientras la marca real entra suavemente. */
+    qsa('.brand.is-pending').forEach(function (brand) { brand.classList.add('is-resolving'); });
+    qsa('[data-app-name], [data-brand-mark]').forEach(function (el) {
+      if (el.style.visibility !== 'hidden') return;
+      el.style.visibility = '';
+      el.classList.add('brand-reveal');
+    });
+    setTimeout(function () {
+      qsa('.brand').forEach(function (brand) { brand.classList.remove('is-pending', 'is-resolving'); });
+      qsa('.brand-reveal').forEach(function (el) { el.classList.remove('brand-reveal'); });
+    }, 520);
+  }
+
+  /* La pantalla de carga usa la marca cacheada; si no hay caché, muestra un
+     marcador neutro y «Cargando…» hasta que Firestore entrega la real. */
+  function syncLoaderBrand(cfg) {
+    var loader = qs('#page-loader'); if (!loader) return;
+    var logo = qs('#page-loader-logo', loader);
+    var name = qs('#page-loader-name', loader);
+    if (logo) {
+      if (cfg.logoUrl) {
+        logo.classList.add('has-image');
+        logo.innerHTML = '<img src="' + esc(cfg.logoUrl) + '" alt="">';
+      } else if (!logo.innerHTML) {
+        logo.innerHTML = I.svg('compass', { size: 46, strokeWidth: 1.6, style: 'color:#fff' });
+      }
+    }
+    if (name) name.textContent = cfg.appName || 'Cargando…';
+  }
+
+  function pageLoadPromise() {
+    if (document.readyState === 'complete') return Promise.resolve();
+    return new Promise(function (resolve) {
+      var done = false;
+      function finish() { if (done) return; done = true; resolve(); }
+      global.addEventListener('load', finish, { once: true });
+      setTimeout(finish, 1500);
+    });
+  }
+
+  /* Oleaje: sube, arrasa el logo y solo entonces se revela el header. */
+  function washLoader() {
+    var loader = qs('#page-loader');
+    if (!loader) { revealBrand(); return Promise.resolve(); }
+    return new Promise(function (resolve) {
+      loader.classList.add('is-washing');
+      setTimeout(function () { loader.classList.add('is-gone'); }, 640);
+      setTimeout(function () { revealBrand(); }, 720);
+      setTimeout(function () {
+        if (loader.parentNode) loader.parentNode.removeChild(loader);
+        resolve();
+      }, 1060);
+    });
+  }
 
   /* ---------------- Toasts ---------------- */
   function toast(message, type) {
@@ -513,8 +587,8 @@
   /* ---------------- Arranque del shell ---------------- */
   async function init() {
     /* El shell se monta ANTES de cualquier await: header, menú, botones y
-       footer aparecen de inmediato con la config por defecto. La config real
-       de Firestore y la sesión se resuelven en paralelo más abajo. */
+       footer aparecen de inmediato, pero la marca queda detrás del loader. */
+    syncLoaderBrand(hasCachedBrand ? config : { appName: 'Cargando…', logoUrl: '' });
     applyTheme(currentTheme());
 
     var mount = function (id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; };
@@ -534,18 +608,25 @@
     markActiveNav();
     refreshZoneLabels();
 
+    /* La marca permanece oculta mientras el loader hace su recorrido; así
+       nunca se ve el nombre por defecto ni aparece «de la nada». */
+    qsa('[data-app-name], [data-brand-mark]').forEach(function (el) { el.style.visibility = 'hidden'; });
+    markBrandPending();
+
     /* Red en paralelo: antes eran dos esperas consecutivas (~460ms + ~250ms). */
     var configTask = D.getConfig().then(function (real) {
       config = real || config;
       applyBrand(config);
+      syncLoaderBrand(config);
       return config;
-    }).catch(function () { return config; });
+    }).catch(function () { syncLoaderBrand(config); return config; });
 
     var authTask = (global.AuthService
       ? global.AuthService.init().then(function (state) { return state && state.session; })
       : Promise.resolve(null)).then(function (authSession) {
         return authSession || D.getSession();
-      }).then(function (s) { session = s || null; return session; });
+      }).then(function (s) { session = s || null; return session; })
+      .catch(function () { session = D.getSession() || null; return session; });
 
     renderSession();
 
@@ -659,15 +740,16 @@
       syncFavorites();
     });
 
-    /* Solo aquí esperamos a la red: el shell y los eventos ya están listos. */
-    await Promise.all([configTask, authTask]);
+    /* Solo aquí esperamos a la red y al load de la página: el shell y los
+       eventos ya están listos. Después el oleaje lava el loader. */
+    await Promise.all([configTask, authTask, pageLoadPromise()]);
+    await washLoader();
 
     D.getActivePromotions().then(function (list) {
       var c = qs('#promo-count'); if (c) c.textContent = list.length;
     });
     syncFavorites();
     renderSession();
-    applyBrand(config);
 
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
       navigator.serviceWorker.register('sw.js').catch(function () {});

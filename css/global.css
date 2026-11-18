@@ -93,6 +93,112 @@ body.has-notice { --notice-h: 30px; }
 .brand__name { font-family: var(--font-display); font-weight: var(--fw-black); font-size: 1.15rem; letter-spacing: -.04em; max-width: 172px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brand__name em { font-style: normal; background: var(--gradient-hero); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
+/* Revelado de marca tras la pantalla de carga: placeholder estable + cross-fade. */
+.brand.is-pending { position: relative; }
+.brand.is-pending::before,
+.brand.is-pending::after {
+  content: ""; position: absolute; top: 50%; transform: translateY(-50%);
+  background: var(--bg-3); pointer-events: none;
+  opacity: 1; transition: opacity .26s ease;
+  animation: brandPlaceholder 1.25s ease-in-out infinite;
+}
+.brand.is-pending::before { left: 0; width: 38px; height: 38px; border-radius: 13px; }
+.brand.is-pending::after { left: 48px; width: 120px; height: 14px; border-radius: 99px; }
+.brand.is-resolving::before,
+.brand.is-resolving::after { opacity: 0; animation: none; }
+
+[data-brand-mark].brand-reveal { animation: brandMarkIn .46s cubic-bezier(.2, .85, .25, 1) both; }
+[data-app-name].brand-reveal { display: inline-block; animation: brandNameIn .46s .07s cubic-bezier(.2, .85, .25, 1) both; }
+
+@keyframes brandPlaceholder { 0%, 100% { opacity: .45; } 50% { opacity: .85; } }
+@keyframes brandMarkIn {
+  from { opacity: 0; transform: translateY(6px) scale(.92); filter: blur(2px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+@keyframes brandNameIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand.is-pending::before,
+  .brand.is-pending::after { animation: none; opacity: .55; transition: none; }
+  [data-brand-mark].brand-reveal,
+  [data-app-name].brand-reveal { animation: none; }
+}
+
+/* ---------------- Pantalla de carga: oleaje sobre el logo ---------------- */
+.page-loader {
+  position: fixed; inset: 0; z-index: 10000;
+  display: grid; place-items: center; overflow: hidden;
+  background: radial-gradient(circle at 50% 42%, var(--bg-2) 0%, var(--bg) 72%);
+  opacity: 1; visibility: visible;
+  transition: opacity .38s ease, visibility .38s ease;
+}
+.page-loader.is-gone { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.page-loader__halo {
+  position: absolute; width: min(72vw, 380px); aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle, var(--brand-coral) 0%, transparent 68%);
+  filter: blur(26px); animation: loaderHalo 2.4s ease-in-out infinite;
+}
+.page-loader__brand {
+  position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 14px;
+  transform: translateY(-5vh); will-change: transform, opacity, filter;
+}
+.page-loader__logo {
+  width: 96px; height: 96px; border-radius: 28px; display: grid; place-items: center;
+  background: var(--gradient-hero); background-size: 200% 200%; color: #fff;
+  box-shadow: var(--glow-coral); overflow: hidden;
+  animation: loaderFloat 1.9s ease-in-out infinite, loaderGradient 6s ease infinite;
+}
+.page-loader__logo.has-image { background: transparent; box-shadow: none; animation: loaderFloat 1.9s ease-in-out infinite; }
+.page-loader__logo img { width: 100%; height: 100%; object-fit: contain; }
+.page-loader__name {
+  font-family: var(--font-display); font-weight: var(--fw-black); font-size: 1.55rem;
+  letter-spacing: -.04em; min-height: 1.25em; color: var(--text);
+}
+.page-loader__dots { display: inline-flex; gap: 6px; }
+.page-loader__dots i {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--brand-coral);
+  animation: loaderDot 1.1s ease-in-out infinite;
+}
+.page-loader__dots i:nth-child(2) { animation-delay: .14s; }
+.page-loader__dots i:nth-child(3) { animation-delay: .28s; }
+
+.page-loader__waves {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 80vh; z-index: 3;
+  transform: translateY(105%); pointer-events: none;
+  transition: transform .64s cubic-bezier(.2, .8, .2, 1);
+}
+.page-loader.is-washing .page-loader__waves { transform: translateY(0); }
+.page-loader__waves svg { width: 100%; height: 100%; display: block; }
+.wave--back { fill: var(--brand-coral); opacity: .07; }
+.wave--mid { fill: var(--brand-blue); opacity: .11; }
+.wave--front { fill: var(--brand-coral); opacity: .18; }
+.page-loader.is-washing .page-loader__brand { animation: loaderWashOut .62s .16s ease-in forwards; }
+
+@keyframes loaderHalo { 0%, 100% { transform: scale(.92); opacity: .08; } 50% { transform: scale(1.08); opacity: .14; } }
+@keyframes loaderFloat { 0%, 100% { transform: translateY(0) rotate(-1.2deg); } 50% { transform: translateY(-9px) rotate(1.2deg); } }
+@keyframes loaderGradient { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes loaderDot { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+@keyframes loaderWashOut {
+  0%   { opacity: 1; transform: translateY(-5vh) scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: translateY(-11vh) scale(.86); filter: blur(10px); }
+}
+
+@media (max-width: 640px) {
+  .page-loader__logo { width: 80px; height: 80px; border-radius: 24px; }
+  .page-loader__name { font-size: 1.3rem; }
+  .page-loader__waves { height: 88vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-loader__halo, .page-loader__logo, .page-loader__dots i { animation: none; }
+  .page-loader.is-washing .page-loader__brand { animation: none; opacity: 0; }
+  .page-loader__waves { transition-duration: .01ms; }
+}
+
 .header-location {
   display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px;
   border-radius: var(--r-pill); background: var(--bg-3); font-size: .82rem; font-weight: var(--fw-medium);
@@ -377,6 +483,8 @@ body.has-notice { --notice-h: 30px; }
   :root { --header-h: 60px; }
   .brand__name { font-size: 1rem; max-width: 120px; }
   .brand__mark { width: 34px; height: 34px; border-radius: 11px; }
+  .brand.is-pending::before { width: 34px; height: 34px; border-radius: 11px; }
+  .brand.is-pending::after { left: 44px; width: 104px; height: 12px; }
   .header-search { order: 3; flex-basis: 100%; margin: 0; }
   .app-header { height: auto; min-height: var(--header-h); flex-wrap: wrap; padding-block: 8px; gap: 6px; }
   .page { padding-top: calc(var(--header-h) + 52px + var(--notice-h, 0px)); }
