@@ -1,59 +1,100 @@
-/* api/gemini.js — Proxy seguro de Gemini para Vercel.
-   La API KEY se lee de process.env.GEMINI_API_KEY y nunca llega al navegador. */
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FF2E00">
+  <meta name="description" content="Directorio informativo local: descubre comercios, menús, horarios y contacta directamente al vendedor.">
+  <title>MiGuía Local</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/variables.css?v=14">
+  <link rel="stylesheet" href="css/global.css?v=14">
+  <link rel="stylesheet" href="css/pages.css?v=14">
+</head>
+<body data-page="home">
+  <div id="top-notice" class="top-notice"></div>
+  <div id="app-header"></div>
+  <div id="app-drawer"></div>
 
-module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método no permitido' });
-  }
+  <main class="page" id="main">
+    <section class="hero">
+      <div class="container hero__inner">
+        <div>
+          <span class="hero__eyebrow" id="hero-greeting">Buenas tardes</span>
+          <h1 data-app-slogan>Descubre lo mejor de tu zona y contacta directo con el vendedor</h1>
+          <div class="hero__search">
+            <input class="input" id="hero-query" type="search" placeholder="¿Qué estás buscando hoy?" aria-label="Buscar en el directorio">
+            <button class="btn" id="hero-search-btn">Buscar</button>
+          </div>
+          <button class="hero__geo" id="hero-zone-btn">
+            <span id="hero-zone-input">Usa tu ubicación actual</span>
+          </button>
+          <div class="coverage-note coverage-note--hero" id="hero-coverage"></div>
+          <input type="hidden" id="hero-zone">
+        </div>
+        <div class="hero__visual" aria-hidden="true">
+          <div class="hero__orb">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2.5 21 7v9l-9 5-9-5V7l9-4.5Z"/><path d="m3 7 9 5 9-5M12 12v9"/>
+              <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>
+            </svg>
+          </div>
+          <div class="hero__float hero__float--1"><span style="color:var(--cat-supermercados)">●</span> Horarios en vivo</div>
+          <div class="hero__float hero__float--2"><span style="color:var(--brand-whatsapp)">●</span> Contacto directo</div>
+        </div>
+      </div>
+    </section>
 
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY no configurada en Vercel' });
-  }
+    <section class="section container" id="rubros">
+      <div class="section__head">
+        <div><h2 class="section__title">¿Necesitas algo más?</h2><p class="section__subtitle">Explora nuestros rubros disponibles</p></div>
+        <a class="section__link" href="explorar.html">Ver todos →</a>
+      </div>
+      <div id="home-categories"></div>
+    </section>
 
-  try {
-    var body = req.body || {};
-    var prompt = String(body.prompt || '').trim();
-    if (!prompt) {
-      return res.status(400).json({ error: 'Falta el prompt' });
-    }
+    <section class="section container" style="padding-top:0">
+      <div class="section__head"><div><h2 class="section__title">Lo más buscado</h2><p class="section__subtitle">Búsquedas rápidas para llegar antes</p></div></div>
+      <div class="chip-row" id="home-trending"></div>
+    </section>
 
-    var parts = [{ text: prompt }];
-    if (body.data) {
-      parts.push({
-        inline_data: {
-          mime_type: String(body.mime || 'image/jpeg'),
-          data: String(body.data)
-        }
-      });
-    }
+    <section class="section container" style="padding-top:0">
+      <div class="section__head"><div><h2 class="section__title">¡Los 10 más elegidos!</h2><p class="section__subtitle">Locales mejor valorados por la comunidad</p></div></div>
+      <div class="rail" id="home-top"></div>
+    </section>
 
-    var model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
-      model + ':generateContent?key=' + encodeURIComponent(process.env.GEMINI_API_KEY);
+    <section class="section container" id="locales">
+      <div class="section__head">
+        <div><h2 class="section__title">Locales disponibles <span id="home-zone-label" class="muted" style="font-weight:500">cerca de ti</span></h2>
+          <p class="section__subtitle">Menús completos, precios referenciales y contacto directo</p></div>
+        <a class="section__link" href="explorar.html">Explorar catálogo →</a>
+      </div>
+      <div id="home-feed"></div>
+    </section>
 
-    var response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: parts }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.1
-        }
-      })
-    });
+    <section class="section container" id="como-funciona">
+      <div class="section__head"><div><h2 class="section__title">Así funciona</h2><p class="section__subtitle">Simple, transparente y sin intermediarios de pago</p></div></div>
+      <div class="how-grid stagger">
+        <div class="card how-step"><div class="how-step__num">1</div><h3>Explora y filtra</h3><p>Busca por rubro, zona, horario o expreso propio. Sin ruido.</p></div>
+        <div class="card how-step"><div class="how-step__num">2</div><h3>Revisa el menú</h3><p>Precios referenciales, descripción, fotos y promociones publicadas por el local.</p></div>
+        <div class="card how-step"><div class="how-step__num">3</div><h3>Contacta directo</h3><p>WhatsApp, llamada, Maps/Waze o redes sociales. Acuerdas todo con el vendedor.</p></div>
+      </div>
+    </section>
+  </main>
 
-    var json = await response.json();
-    if (!response.ok) {
-      return res.status(response.status).json(json);
-    }
+  <div id="app-footer"></div>
+  <div id="promo-pill"></div>
+  <div id="cookie-bar" class="cookie-bar"></div>
+  <div id="toast-root"></div>
+  <div id="modal-root"></div>
 
-    var candidate = (json.candidates || [])[0] || {};
-    var partsOut = ((candidate.content || {}).parts || []);
-    var text = partsOut.map(function (p) { return p.text || ''; }).join('');
-
-    return res.status(200).json({ text: text });
-  } catch (err) {
-    return res.status(500).json({ error: String((err && err.message) || err) });
-  }
-};
+  <script src="js/icons.js?v=14"></script>
+  <script src="js/firebase-config.js?v=14"></script>
+  <script src="js/appwrite-config.js?v=14"></script>
+  <script src="js/ai-menu-scanner.js?v=14"></script>
+  <script src="js/data-service.js?v=14"></script>
+  <script src="js/auth-service.js?v=14"></script>
+  <script src="js/ui-core.js?v=14"></script>
+  <script src="js/page-home.js?v=14"></script>
+</body>
+</html>
