@@ -1,0 +1,28 @@
+{
+  "name": "MiGuía Local",
+  "short_name": "MiGuía",
+  "description": "Directorio informativo local con menús, horarios, promociones y contacto directo con el vendedor. Sin carrito ni cobros internos.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f8fafc",
+  "theme_color": "#FF2E00",
+  "lang": "es-CR",
+  "dir": "ltr",
+  "categories": ["lifestyle", "business", "food"],
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Explorar locales", "short_name": "Explorar", "url": "./explorar.html", "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Promociones", "short_name": "Ofertas", "url": "./promociones.html", "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Ingresar a mi cuenta", "short_name": "Ingresar", "url": "./login.html", "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Crear cuenta", "short_name": "Registro", "url": "./registro.html", "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Preguntas frecuentes", "short_name": "Ayuda", "url": "./preguntas-frecuentes.html", "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Contacto con developers", "short_name": "Contacto", "url": "./contacto.html", "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FF5500">
+  <title>Registra tu negocio — MiGuía Local</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/variables.css?v=14">
+  <link rel="stylesheet" href="css/global.css?v=14">
+  <link rel="stylesheet" href="css/pages.css?v=14">
+</head>
+<body data-page="registro">
+  <div id="top-notice" class="top-notice"></div>
+  <div id="app-header"></div>
+  <div id="app-drawer"></div>
+
+  <main class="page container" id="main">
+    <section class="section">
+      <div class="section__head">
+        <div><h1 class="section__title">Registra tu negocio</h1>
+          <p class="section__subtitle">Solicitud <strong id="reg-tipo">Restaurante / Soda / Cafetería</strong> · Tu información queda <strong>pendiente</strong> hasta ser verificada.</p></div>
+        <span class="badge badge--new" style="background:rgba(124,58,237,.12);color:var(--cat-licores)">Anti-trolls activo</span>
+      </div>
+
+      <div class="wizard-wrap">
+        <div class="wizard-steps" id="wizard-steps"></div>
+
+        <form id="reg-form" autocomplete="on">
+          <!-- PASO 1 -->
+          <div class="card wizard-card" data-step="1">
+            <h2 id="reg-tipo-label">Datos del negocio</h2>
+            <p class="muted">Estos datos son públicos una vez aprobados. No solicitamos información bancaria.</p>
+            <div class="form-grid">
+              <div class="field"><label class="field__label">Nombre del negocio <span class="req">*</span></label>
+                <input class="input" name="nombre" required placeholder="Nombre tal como aparece en el local"></div>
+              <div class="field"><label class="field__label">Rubro <span class="req">*</span></label><select class="select" id="reg-cat" name="categoria" required></select></div>
+              <div class="field"><label class="field__label">Zona <span class="req">*</span></label><select class="select" id="reg-zone" name="zona" required></select></div>
+              <div class="field"><label class="field__label">Dirección exacta</label><input class="input" name="direccion" placeholder="Calle, número, barrio"></div>
+              <div class="field"><label class="field__label">Teléfono <span class="req">*</span></label><input class="input" name="telefono" type="tel" required placeholder="8888 8888"></div>
+              <div class="field"><label class="field__label">WhatsApp</label><input class="input" name="whatsapp" type="tel" placeholder="Si es diferente al teléfono"></div>
+              <div class="field"><label class="field__label">Correo del negocio <span class="req">*</span></label><input class="input" id="reg-email" name="email" type="email" required></div>
+              <div class="field"><label class="field__label">Responsable / dueño <span class="req">*</span></label><input class="input" id="reg-nombre-contacto" name="nombre-contacto" required></div>
+            </div>
+            <div class="field" style="margin-top:14px"><label class="field__label">Descripción</label>
+              <textarea class="textarea" name="descripcion" placeholder="Qué ofrecen, desde cuándo están, especialidades…"></textarea></div>
+            <div class="form-grid" style="margin-top:14px">
+              <div class="field"><label class="field__label">Instagram</label><input class="input" name="instagram" placeholder="https://instagram.com/..."></div>
+              <div class="field"><label class="field__label">Facebook</label><input class="input" name="facebook" placeholder="https://facebook.com/..."></div>
+            </div>
+            <div class="field" style="margin-top:14px"><label class="field__label">Enlace de Google Maps (opcional)</label><input class="input" name="mapsurl" placeholder="https://maps.app.goo.gl/..."></div>
+            <div class="honeypot"><label>Deja este campo vacío<input id="reg-honeypot" name="website" tabindex="-1" autocomplete="off"></label></div>
+          </div>
+
+          <!-- PASO 2 -->
+          <div class="card wizard-card hidden" data-step="2">
+            <h2>Verificación de identidad</h2>
+            <p class="muted">Requerimos una foto real y un enlace verificable para evitar listings falsos.</p>
+            <div class="form-grid">
+              <div class="field"><label class="field__label">Foto de fachada o logo <span class="req">*</span></label>
+                <label class="upload-box" id="reg-fachada-box"><input type="file" id="reg-fachada" accept="image/*" hidden>
+                  <span id="reg-fachada-preview"></span>
+                  <strong>Toca para subir la foto</strong><small>JPG o PNG · se comprime automáticamente</small></label></div>
+              <div class="field"><label class="field__label">Enlace verificable <span class="req">*</span></label>
+                <input class="input" id="reg-enlace" placeholder="Sitio web, Instagram, Facebook o Maps">
+                <span class="field__hint">Debe llevar a un perfil o ubicación que confirme que el local existe.</span>
+                <div style="margin-top:18px;padding:14px;border-radius:12px;background:var(--bg-3)">
+                  <strong style="font-size:.84rem">¿Por qué pedimos esto?</strong>
+                  <p class="tiny muted" style="margin-top:6px">Mantenemos el directorio limpio: solo publicamos comercios reales y contactables.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PASO 3 -->
+          <div class="card wizard-card hidden" data-step="3">
+            <h2>Carga tu menú o catálogo</h2>
+            <p class="muted">Opcional en esta etapa. Usa el modo que prefieras: manual, Excel/CSV o escaneo inteligente de foto.</p>
+            <div id="reg-menu-loader"></div>
+          </div>
+
+          <!-- PASO 4 -->
+          <div class="card wizard-card hidden" data-step="4">
+            <h2>Revisión y envío</h2>
+            <p class="muted">Revisa que todo esté correcto. Tu solicitud quedará en estado <strong>pendiente</strong> y no será visible públicamente hasta su aprobación.</p>
+            <div id="reg-summary"></div>
+            <label style="display:flex;gap:9px;align-items:flex-start;margin-top:20px;font-size:.84rem;cursor:pointer">
+              <input type="checkbox" id="reg-terms" style="margin-top:3px">
+              Confirmo que la información y la fotografía son reales y pertenecen a mi negocio.
+            </label>
+          </div>
+        </form>
+
+        <div class="wizard-actions">
+          <button class="btn btn--ghost" id="wizard-prev">← Anterior</button>
+          <button class="btn btn--primary" id="wizard-next">Siguiente →</button>
+          <button class="btn btn--whatsapp" id="wizard-submit" style="display:none">Enviar solicitud</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="app-footer"></div>
+  <div id="promo-pill"></div>
+  <div id="cookie-bar" class="cookie-bar"></div>
+  <div id="toast-root"></div>
+  <div id="modal-root"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+  <script src="js/icons.js?v=14"></script>
+  <script src="js/firebase-config.js?v=14"></script>
+  <script src="js/appwrite-config.js?v=14"></script>
+  <script src="js/ai-menu-scanner.js?v=14"></script>
+  <script src="js/data-service.js?v=14"></script>
+  <script src="js/auth-service.js?v=14"></script>
+  <script src="js/ui-core.js?v=14"></script>
+  <script src="js/menu-loader.js?v=14"></script>
+  <script src="js/page-registro.js?v=14"></script>
+</body>
+</html>

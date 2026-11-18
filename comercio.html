@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FF2E00">
+  <title>Comercio — MiGuía Local</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/variables.css?v=14">
+  <link rel="stylesheet" href="css/global.css?v=14">
+  <link rel="stylesheet" href="css/pages.css?v=14">
+</head>
+<body data-page="comercio">
+  <div id="top-notice" class="top-notice"></div>
+  <div id="app-header"></div>
+  <div id="app-drawer"></div>
+
+  <main class="page" id="main">
+    <div id="comercio-root">
+      <div class="comercio-cover" id="comercio-cover">
+        <div class="comercio-cover__img hidden" id="comercio-cover-img"></div>
+      </div>
+      <div class="container">
+        <div class="comercio-head">
+          <div class="comercio-logo" id="comercio-logo">?</div>
+          <div class="comercio-head__info">
+            <h1 id="comercio-name">Cargando…</h1>
+            <div class="comercio-head__meta">
+              <span id="comercio-cat"></span><span id="comercio-zone"></span>
+              <span id="comercio-rating"></span><span id="comercio-status"></span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-left:auto">
+            <button class="icon-btn" id="comercio-fav" aria-label="Guardar en favoritos"></button>
+            <button class="icon-btn" id="comercio-share" aria-label="Compartir"></button>
+          </div>
+        </div>
+
+        <div class="comercio-actions" id="comercio-actions"></div>
+        <p class="muted" id="comercio-desc" style="margin-top:18px;max-width:760px"></p>
+
+        <div class="comercio-layout">
+          <div>
+            <section class="section" style="padding-top:0">
+              <div class="section__head"><div><h2 class="section__title">Menú informativo</h2>
+                <p class="section__subtitle">Precios referenciales publicados por el comercio. El pedido se acuerda directamente.</p></div></div>
+              <div class="menu-tabs" id="menu-tabs"></div>
+              <div id="comercio-menu"></div>
+            </section>
+
+            <section class="section" style="padding-top:0">
+              <div class="section__head"><div><h2 class="section__title">Reseñas <span class="muted" id="review-count" style="font-weight:500">(0)</span></h2>
+                <p class="section__subtitle">Opiniones de personas que contactaron al local</p></div></div>
+              <div id="comercio-reviews"></div>
+              <div class="card" style="padding:16px;margin-top:18px">
+                <h3 style="font-size:.95rem;margin-bottom:12px">Deja tu reseña</h3>
+                <div class="form-grid form-grid--1">
+                  <div class="field"><label class="field__label">Calificación</label>
+                    <select class="select" id="review-rating">
+                      <option value="">Elegir…</option><option value="5">★★★★★ Excelente</option>
+                      <option value="4">★★★★ Muy bueno</option><option value="3">★★★ Bueno</option>
+                      <option value="2">★★ Regular</option><option value="1">★ Malo</option>
+                    </select></div>
+                  <div class="field"><label class="field__label">Comentario (opcional)</label>
+                    <textarea class="textarea" id="review-comment" placeholder="Cuéntanos sobre la atención, calidad o disponibilidad…"></textarea></div>
+                </div>
+                <button class="btn btn--primary" id="review-submit" style="margin-top:12px">Publicar reseña</button>
+              </div>
+            </section>
+          </div>
+
+          <aside class="comercio-side">
+            <div id="comercio-promos"></div>
+            <div class="card side-card"><h3>Horarios semanales</h3><div id="comercio-hours"></div></div>
+            <div class="card side-card"><h3>Contacto y redes</h3><div class="contact-links" id="comercio-social"></div></div>
+            <div class="card side-card" style="background:var(--bg-3)">
+              <h3>Sin cobros internos</h3>
+              <p class="tiny muted">Este directorio no procesa pagos ni pedidos. Coordina precio, entrega y disponibilidad directamente con el vendedor.</p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="app-footer"></div>
+  <div id="promo-pill"></div>
+  <div id="cookie-bar" class="cookie-bar"></div>
+  <div id="toast-root"></div>
+  <div id="modal-root"></div>
+
+  <script src="js/icons.js?v=14"></script>
+  <script src="js/firebase-config.js?v=14"></script>
+  <script src="js/appwrite-config.js?v=14"></script>
+  <script src="js/ai-menu-scanner.js?v=14"></script>
+  <script src="js/data-service.js?v=14"></script>
+  <script src="js/auth-service.js?v=14"></script>
+  <script src="js/ui-core.js?v=14"></script>
+  <script src="js/page-comercio.js?v=14"></script>
+</body>
+</html>
